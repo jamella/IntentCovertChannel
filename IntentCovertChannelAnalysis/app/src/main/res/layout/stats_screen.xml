@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+   
+    <ScrollView 
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_weight="5" >
+        
+        <TextView
+            android:id="@+id/stats_display"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="" />
+        
+    </ScrollView>
+
+    <TableRow 
+        android:layout_weight="1"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp" >
+    
+	    <Button 
+	        android:id="@+id/test_intent_size_button"
+	        android:layout_width="100dp"
+	        android:layout_height="65dp"
+	        android:gravity="center"
+	        android:text="Intent Size" />
+
+	   <Button 
+	        android:id="@+id/send_message_button"
+            android:layout_width="100dp"
+            android:layout_height="65dp"
+	        android:gravity="center"
+	        android:layout_marginLeft="20dp"
+	        android:text="Send Message" />
+	   
+    </TableRow>
+	   
+    <TableRow 
+        android:layout_weight="1"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginBottom="10dp" >
+        
+       <Button 
+            android:id="@+id/test_throughput_button"
+            android:layout_width="100dp"
+            android:layout_height="65dp"
+            android:gravity="center"
+            android:text="Throughput" />
+       
+	   <Button 
+	        android:id="@+id/calc_bit_error_button"
+            android:layout_width="100dp"
+            android:layout_height="65dp"
+	        android:gravity="center"
+	        android:layout_marginLeft="20dp"
+	        android:text="Bit Error" />
+	    
+    </TableRow>
+    
+</TableLayout>

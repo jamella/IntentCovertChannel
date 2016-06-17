@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="covertchannel.intent.receiver"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="23" />
+    
+    <application
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name" >
+        
+        <activity
+            android:name="covertchannel.intent.receiver.CovertChannelReceiver"
+            android:label="@string/app_name" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+        <service
+            android:name="covertchannel.intent.receiver.MessageReceiver"
+            android:exported="true"
+            android:enabled="true" >
+            
+            <!-- TODO: Use better, more generalized filters -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="receive_covert_message_action" />
+            </intent-filter>
+            
+            <intent-filter>
+                <action android:name="calculate_throughput_action" />
+            </intent-filter>
+            
+            <intent-filter>
+                <action android:name="calculate_bit_error_rate" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="control_channel" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_0" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_1" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_2" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_3" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_4" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_5" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_6" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_7" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_8" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="data_9" />
+            </intent-filter>
+        </service>
+    </application>
+
+</manifest>
