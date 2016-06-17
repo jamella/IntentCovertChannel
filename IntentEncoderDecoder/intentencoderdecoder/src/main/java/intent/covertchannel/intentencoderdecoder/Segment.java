@@ -1,5 +1,8 @@
 package intent.covertchannel.intentencoderdecoder;
 
+import android.content.Intent;
+import android.os.Bundle;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,5 +46,20 @@ public class Segment {
     public Map<String, String> getFragmentMessageKeyMap() {
         // TODO: Return copy for better safety
         return bitstringsByMessageKey;
+    }
+
+    public Intent asEncodedIntent() {
+        Intent encodedIntent = new Intent();
+        encodedIntent.setType("plain/text");
+        encodedIntent.setAction(action);
+
+        Bundle msgBundle = new Bundle();
+        for(String msgKey: bitstringsByMessageKey.keySet()) {
+            // TODO: Encode each value string (confirm that these are bitstrings) into the bundle in an expansion-code and action-band value set offset aware way
+            // (probably a static function in BistringEncoder)
+        }
+
+        encodedIntent.putExtras(msgBundle);
+        return encodedIntent;
     }
 }

@@ -25,7 +25,7 @@ import android.util.Log;
 // etc.)
 
 // TODO: Retrofit to work with API 7/all APIs
-public class LowerCaseAlphaEncoder extends EncodingScheme
+public class LowerCaseAlphaEncoder implements EncodingScheme
 {
     // TODO: Change to a configurable value
     private static final int MAX_MESSAGE_SIZE = Integer.MAX_VALUE;

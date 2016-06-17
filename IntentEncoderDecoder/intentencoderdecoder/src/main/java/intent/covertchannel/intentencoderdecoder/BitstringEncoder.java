@@ -6,6 +6,7 @@ import android.util.Log;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +15,7 @@ import java.util.Set;
 /**
  * Created by Tim on 5/24/2016.
  */
-public class BitstringEncoder extends EncodingScheme {
+public class BitstringEncoder implements EncodingScheme {
 
     // TODO: Print lines to log lines
 
@@ -23,17 +24,12 @@ public class BitstringEncoder extends EncodingScheme {
     public static final int NUM_DATA_ACTIONS = 4;
     private static final String TAG = "intent.covertchannel.intentencoderdecoder.BitstringEncoder";
 
-    /* TODO: Cleanup
-    // There are NUM_EXANSION_CODES + 1 different value sets (the first value set has no expansion code)
-    //public static final int NUM_UNIQUE_VALUES = NUM_BASE_VALUES * (NUM_EXANSION_CODES + 1) * NUM_DATA_ACTIONS;
-    public static final int MAX_VALUE = NUM_UNIQUE_VALUES - 1;
-    public static final int FRAGMENT_MAX_BIT_LENGTH = calculateMaxFragmentBitLength(MAX_VALUE);
-    public static final int FRAGMENT_MIN_BIT_LENGTH = calculateMinFragmentBitLength(MAX_VALUE);
-    */
+    protected KeyGenerator keyGenerator;
+
+    // Comparator for ordering the String keys in a Bundle.
+    protected Comparator<String> keyComparator;
 
     public BitstringEncoder() {
-        // TODO: Change dictionary
-        dictionary = new LowerCaseAlphaEncodingDictionary();
         keyGenerator = new AlphabeticalKeySequence();
         keyComparator = new AlphabeticalKeySequenceComparator();
     }
@@ -82,11 +78,6 @@ public class BitstringEncoder extends EncodingScheme {
             int fragmentIntVal = bitstringToInt(fragment);
             Log.d(TAG, String.valueOf(fragmentIntVal % NUM_BASE_VALUES));
         }
-
-        /* TODO: Incorporate
-        carrier.setType("plain/text");
-        carrier.setAction(actionString);
-        */
 
         return null; // TODO: implement
     }
