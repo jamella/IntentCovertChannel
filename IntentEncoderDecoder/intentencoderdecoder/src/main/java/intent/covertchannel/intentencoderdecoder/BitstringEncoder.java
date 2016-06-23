@@ -41,9 +41,11 @@ public class BitstringEncoder implements EncodingScheme {
     private List<String> actionStrings;
     private int buildVersion;
     private Map<String, String> actionToMessageMap;
+    private int maxBaseValue;
 
     public BitstringEncoder(int numBaseValues, int numExpansionCodes, List<String> actionStrings, int buildVersion) {
         this.numBaseValues = numBaseValues;
+        this.maxBaseValue = numBaseValues - 1;
         this.numExpansionCodes = numExpansionCodes;
         this.actionStrings = actionStrings;
         this.buildVersion = buildVersion;
@@ -82,6 +84,8 @@ public class BitstringEncoder implements EncodingScheme {
 
         List<Intent> carriers = new ArrayList<>();
 
+        // TODO: Figure out why metadata fields are not being included
+
         // TODO: Make sure that this get iterated over in order
         List<Segment> segments = segmentMap.getSegments();
         for(Segment segment: segments) {
@@ -96,6 +100,8 @@ public class BitstringEncoder implements EncodingScheme {
 
     @Override
     public String decodeMessage(Intent carrier) {
+        Log.d(TAG, "Starting to decode message: " + carrier.getAction());
+
         // TODO: Implement concept of message and/or app ID's (later)
 
         if (carrier == null) {
@@ -110,8 +116,18 @@ public class BitstringEncoder implements EncodingScheme {
         }
 
         Bundle dataBundle = carrier.getExtras();
-        if (dataBundle == null) {
+        if(dataBundle == null) {
             throw new IllegalArgumentException("Cannot decode message; extras Bundle is null");
+        }
+
+        if(dataBundle.isEmpty()) {
+            Log.d(TAG, "No information found for carrier with action \"" + carrier.getAction() + "\"");
+            return "";
+        }
+
+        // Must have at least the first metadata entry and one data entry
+        if(dataBundle.size() < 2) {
+            throw new IllegalArgumentException("Data bundle must contain data fields in addition to metadata fields");
         }
 
         Set<String> bundleKeys;
@@ -120,41 +136,67 @@ public class BitstringEncoder implements EncodingScheme {
 
         int actionOffset = calculateActionOffset(carrier.getAction());
 
-        StringBuilder messageBuilder = new StringBuilder(bundleKeys.size());
+        List<String> messageFragments = new ArrayList<>();
+        StringBuilder msgBuilder = new StringBuilder();
+
         try {
-            for(String key: bundleKeys) {
-                int value;
-                if(EncodingUtils.containsExpansionCode(dataBundle, key)) {
-                    Log.d(TAG, "Decoding value and expansion code for key \"" + key + "\"");
-                    value = decodeExpansionCodeAndValue(dataBundle, key);
-                } else {
-                    Log.d(TAG, "Decoding value without expansion code for key \"" + key + "\"");
-                    value = EncodingUtils.decodeValueForEntry(dataBundle, key, 0, buildVersion);
-                }
+            Iterator<String> bundleKeyIter = bundleKeys.iterator();
+            String sigBitsInLastFragmentKey = bundleKeyIter.next();
+            String sigBitsMetadataBitstring = decodeFragmentAsBitstring(dataBundle, sigBitsInLastFragmentKey, actionOffset);
+            int numSigBitsInLastFragment = bitstringToInt(sigBitsMetadataBitstring);
 
-                value += actionOffset;
-                String msgBitstring = Integer.toBinaryString(value);
+            Log.d(TAG, "Number of significant bits in the last fragment: " + numSigBitsInLastFragment);
 
-                // TODO: Pad bitstring with zeroes (from the left/most significant bits) up to min length
-                if(msgBitstring.length() < this.fragmentMinBitLength) {
-                    msgBitstring = leftPadWithZeroes(msgBitstring, this.fragmentMinBitLength - msgBitstring.length());
-                }
-                Log.d(TAG, "Decoded bitstring " + msgBitstring + " for key \"" + key + "\" with an actionOffset of " + actionOffset);
-
-                String msg = bitStringToStr(msgBitstring);
-                messageBuilder.append(msg);
+            while(bundleKeyIter.hasNext()) {
+                String key = bundleKeyIter.next();
+                String fragment = decodeFragmentAsBitstring(dataBundle, key, actionOffset);
+                messageFragments.add(fragment);
             }
+
+            // Join the message fragments together, accounting for the fact that the last fragment might have
+            // been padded (and therefore need to have the padding removed from the end [least significant
+            // bits])
+            for(int i = 0; i < messageFragments.size() - 1; i++) {
+                String fragmentString = bitStringToStr(messageFragments.get(i));
+                msgBuilder.append(fragmentString);
+            }
+
+            String lastFragmentBitstring = messageFragments.get(messageFragments.size() - 1);
+            if(numSigBitsInLastFragment < fragmentMinBitLength) {
+                int numPaddingBits = lastFragmentBitstring.length() - numSigBitsInLastFragment;
+                lastFragmentBitstring = lastFragmentBitstring.substring(0, lastFragmentBitstring.length() - numPaddingBits);
+            }
+
+            String lastFragmentString = bitStringToStr(lastFragmentBitstring);
+            msgBuilder.append(lastFragmentString);
         } catch(IllegalArgumentException e) {
             Log.w(TAG, "Could not fully decode message: " + e.getMessage() + "\n" + e.getStackTrace().toString());
         }
 
-        String msg = messageBuilder.toString();
-
-        // TODO: Change back to actual text
+        String msg = msgBuilder.toString();
         actionToMessageMap.put(carrier.getAction(), msg);
-        //actionToMessageMap.put(carrier.getAction(), strToBitString(msg));
-
         return msg;
+    }
+
+    private String decodeFragmentAsBitstring(Bundle dataBundle, String key, int actionOffset) {
+        int value;
+        if(EncodingUtils.containsExpansionCode(dataBundle, key)) {
+            Log.d(TAG, "Decoding value and expansion code for key \"" + key + "\"");
+            value = decodeExpansionCodeAndValue(dataBundle, key);
+        } else {
+            Log.d(TAG, "Decoding value without expansion code for key \"" + key + "\"");
+            value = EncodingUtils.decodeValueForEntry(dataBundle, key, 0, buildVersion);
+        }
+
+        value += actionOffset;
+        String msgBitstring = Integer.toBinaryString(value);
+
+        if(msgBitstring.length() < this.fragmentMinBitLength) {
+            msgBitstring = leftPadWithZeroes(msgBitstring, this.fragmentMinBitLength - msgBitstring.length());
+        }
+
+        Log.d(TAG, "Decoded bitstring " + msgBitstring + " for key \"" + key + "\" with an actionOffset of " + actionOffset);
+        return msgBitstring;
     }
 
     private static String leftPadWithZeroes(String msgBitstring, int numZeroes) {
@@ -172,7 +214,7 @@ public class BitstringEncoder implements EncodingScheme {
         Bundle nestedBundle = dataBundle.getBundle(baseKey);
 
         Set<String> bundleKeys = new TreeSet<>(keyComparator);
-        bundleKeys.addAll(dataBundle.keySet());
+        bundleKeys.addAll(nestedBundle.keySet());
 
         int expansionCode = 1; // The implicit one (the fact that there is a nested Bundle is treated as an expansion code of one)
 
@@ -181,6 +223,8 @@ public class BitstringEncoder implements EncodingScheme {
         Iterator<String> keyIter = bundleKeys.iterator();
         String key = keyIter.next();
         while(keyIter.hasNext()) {
+            Log.d(TAG, "Decoding nested key \"" + key + "\"");
+
             if(EncodingUtils.containsExpansionCode(nestedBundle, key)) {
                 Log.d(TAG, "Found deeper nesting; decoding recursively");
                 expansionCode += decodeExpansionCodeAndValue(nestedBundle, key);
@@ -191,7 +235,6 @@ public class BitstringEncoder implements EncodingScheme {
             key = keyIter.next();
         }
 
-        // TODO: Figure out why the value for the expansion code is not being read/evaluated
         int baseValue = EncodingUtils.decodeValueForEntry(nestedBundle, key, expansionCode, buildVersion);
 
         Log.d(TAG, "Expansion code for root key \"" + baseKey + "\" => " + expansionCode);
@@ -207,7 +250,6 @@ public class BitstringEncoder implements EncodingScheme {
     public String getMessage() {
         StringBuilder msgBuilder = new StringBuilder();
 
-        // TODO: Implement message metadata fields (number of significant bits in last fragment, number of segments in message, segment number, and app ID)
         // The EncodingUtils.ACTIONS list is used to determine the ordering of the different segments
         for(String action: EncodingUtils.ACTIONS) {
             if(actionToMessageMap.containsKey(action)) {
@@ -436,13 +478,13 @@ public class BitstringEncoder implements EncodingScheme {
         expansionCode--; // Decrement by one to signify the implicit one
 
         while (expansionCode > 0) {
-            if(expansionCode >= numBaseValues) {
-                nestedBundle = EncodingUtils.encodeValue(nestedBundle, nestedKeyGenerator.next(), numBaseValues, buildVersion);
+            if(expansionCode >= maxBaseValue) {
+                nestedBundle = EncodingUtils.encodeValue(nestedBundle, nestedKeyGenerator.next(), maxBaseValue, buildVersion);
             } else {
                 nestedBundle = EncodingUtils.encodeValue(nestedBundle, nestedKeyGenerator.next(), expansionCode, buildVersion);
             }
 
-            expansionCode -= numBaseValues;
+            expansionCode -= maxBaseValue;
         }
 
         nestedBundle = EncodingUtils.encodeValue(nestedBundle, nestedKeyGenerator.next(), baseValue, buildVersion);

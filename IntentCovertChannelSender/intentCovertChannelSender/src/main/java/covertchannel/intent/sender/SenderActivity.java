@@ -143,6 +143,12 @@ public class SenderActivity extends Activity {
                         messsageEntry.setText("");
 
                         for(Intent encodedIntent: encodedIntents) {
+                            if(encodedIntent.getExtras().isEmpty()) {
+                                // Don't send empty Intents
+                                Log.d(TAG, "Skipping Intent with action \"" + encodedIntent.getAction() + "\"; no data");
+                                continue;
+                            }
+
                             // TODO: Make these constants
                             ComponentName cn = new ComponentName("covertchannel.intent.receiver", "covertchannel.intent.receiver.MessageReceiver");
                             encodedIntent.setComponent(cn);

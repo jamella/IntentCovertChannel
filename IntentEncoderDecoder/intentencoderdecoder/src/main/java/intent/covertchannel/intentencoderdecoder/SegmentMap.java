@@ -80,12 +80,24 @@ public class SegmentMap {
     public String putFragment(String fragment) {
         int fragmentVal = validateAndConvertFragment(fragment);
 
-        // TODO: Reserve first key in every segment for the first metadata field (sig-bits in last fragment) and update the value on every put
         for(Segment segment: this.segments) {
             if(segment.valueWithinLimits(fragmentVal)) {
+                if(!segment.hasMetadataKey(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY)) {
+                    segment.setMetadataKey(keyGenerator.next(), Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY);
+                }
+
                 String key = keyGenerator.next();
                 segment.addFragment(key, fragment);
                 fragmentKeyMap.put(key, fragment);
+
+                // TODO: Test this logic
+                // Update the number of significant bits in the last fragment (i.e. the one that was just added)
+                int sigBitsInFragment = fragment.length();
+                String sigBitsMetadataKey = segment.getMetadataKey(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY);
+                String sigBitsMetadataFragmentBitstring = Integer.toBinaryString(sigBitsInFragment);
+                segment.setMetadataValue(sigBitsMetadataFragmentBitstring, Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY);
+                fragmentKeyMap.put(sigBitsMetadataKey, sigBitsMetadataFragmentBitstring);
+
                 return key;
             }
         }
