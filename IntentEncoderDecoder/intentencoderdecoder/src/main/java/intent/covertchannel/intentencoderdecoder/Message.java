@@ -2,18 +2,19 @@ package intent.covertchannel.intentencoderdecoder;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public class Message implements Iterable<String> {
-    private Collection<String> fragments;
+    private List<String> fragments;
     private int lengthOfLastFragment;
 
-    public Message(Collection<String> fragments, int lengthOfLastFragment) {
+    public Message(List<String> fragments, int lengthOfLastFragment) {
         this.fragments = fragments;
         this.lengthOfLastFragment = lengthOfLastFragment;
     }
 
-    public Collection<String> getFragments() {
+    public List<String> getFragments() {
         // TODO: Return a copy instead of the actual collection for safety
         return this.fragments;
     }

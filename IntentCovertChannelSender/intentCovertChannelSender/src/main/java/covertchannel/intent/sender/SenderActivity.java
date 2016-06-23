@@ -25,10 +25,7 @@ import intent.covertchannel.intentencoderdecoder.LowerCaseAlphaEncoder;
 // TODO: Look into using InputFilters with the message entry EditText to limit
 // the character values which can be typed to those supported by the current
 // scheme
-public class SenderActivity extends Activity
-{
-    private static final int NUM_EXPANSION_CODES = 1;
-    private static final Set<String> ACTIONS = new HashSet<>(); // TODO: Share this set through the common utils
+public class SenderActivity extends Activity {
     private static final String TAG = "covertchannel.intent.sender.SenderActivity";
 
     private EditText messsageEntry;
@@ -51,22 +48,30 @@ public class SenderActivity extends Activity
         sendAlphaEnhancedInterceptibleButton = (Button) findViewById(R.id.send_alpha_enhanced_interceptible_button);
         sendBitstringButton = (Button) findViewById(R.id.send_bitstring_button);
         sendBitstringInterceptibleButton = (Button) findViewById(R.id.send_bitstring_interceptible_button);
-        // TODO: Add missing button handlers
+
+        // TODO: Implement the enhanced alpha encoder
+        final EncodingScheme alphaEncoder = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.ALPHA_ENCODING_ACTION), EncodingScheme.BUILD_VERSION);
+        final EncodingScheme alphaEncoderInterceptible = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.INTERCEPTIBLE_ACTION), EncodingScheme.BUILD_VERSION);
+
+        // TODO: Use more action strings
+        final EncodingScheme bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, EncodingUtils.ACTIONS, EncodingScheme.BUILD_VERSION);
+        //final EncodingScheme bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, Collections.singletonList(EncodingUtils.ACTION_ARRAY[0]), EncodingScheme.BUILD_VERSION);
+        final EncodingScheme bitstringEncoderInterceptible = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singletonList(EncodingUtils.INTERCEPTIBLE_ACTION), EncodingScheme.BUILD_VERSION);
+
 
         // TODO: Cleanup repeated code
 		sendAlphaButton.setOnClickListener(
                 new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        EncodingScheme schema = new LowerCaseAlphaEncoder();
-
                         // TODO: Check the input validity
                         String message = messsageEntry.getText().toString();
 
                         Log.d(TAG, "Encoding message \"" + message + "\"");
-                        Intent encodedIntent = schema.encodeMessage(message, EncodingScheme.NUM_BASE_VALUES, NUM_EXPANSION_CODES, Collections.singleton(EncodingUtils.RECEIVER_COVERT_MESSAGE_ACTION)).iterator().next();
+                        Intent encodedIntent = alphaEncoder.encodeMessage(message).iterator().next();
                         messsageEntry.setText("");
 
+                        // TODO: Move into encoding schemes/ use constants
                         ComponentName cn = new ComponentName("covertchannel.intent.receiver", "covertchannel.intent.receiver.MessageReceiver");
                         encodedIntent.setComponent(cn);
 
@@ -79,17 +84,10 @@ public class SenderActivity extends Activity
                 new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        EncodingScheme schema = new LowerCaseAlphaEncoder();
-
-                        // TODO: Use constants instead of hard-coded build version
                         // TODO: Check the input validity
                         String message = messsageEntry.getText().toString();
-                        Intent encodedIntent = schema.encodeMessage(message, EncodingScheme.NUM_BASE_VALUES, NUM_EXPANSION_CODES, Collections.singleton(Intent.ACTION_SEND)).iterator().next();
+                        Intent encodedIntent = alphaEncoderInterceptible.encodeMessage(message).iterator().next();
                         messsageEntry.setText("");
-
-                        // TODO: Set these in the encoding functions
-                        //encodedIntent.setType("plain/text");
-                        //encodedIntent.setAction();
 
                         Log.d(TAG, "Starting activity with Intent with action of " + encodedIntent.getAction());
 
@@ -101,16 +99,13 @@ public class SenderActivity extends Activity
                 new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        // TODO: Implement the enhanced alpha encoder
-                        EncodingScheme schema = new LowerCaseAlphaEncoder();
-
                         // TODO: Check the input validity
                         String message = messsageEntry.getText().toString();
 
                         Log.d(TAG, "Encoding message \"" + message + "\"");
 
                         // TODO: Enable sending the full set of Intents
-                        Intent encodedIntent = schema.encodeMessage(message, EncodingScheme.NUM_BASE_VALUES, NUM_EXPANSION_CODES, Collections.singleton(EncodingUtils.RECEIVER_COVERT_MESSAGE_ACTION)).iterator().next();
+                        Intent encodedIntent = alphaEncoder.encodeMessage(message).iterator().next();
                         messsageEntry.setText("");
 
                         ComponentName cn = new ComponentName("covertchannel.intent.receiver", "covertchannel.intent.receiver.MessageReceiver");
@@ -125,18 +120,10 @@ public class SenderActivity extends Activity
                 new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        // TODO: Implement the enhanced alpha encoder
-                        EncodingScheme schema = new LowerCaseAlphaEncoder();
-
-                        // TODO: Use constants instead of hard-coded build version
                         // TODO: Check the input validity
                         String message = messsageEntry.getText().toString();
-                        Intent encodedIntent = schema.encodeMessage(message, EncodingScheme.NUM_BASE_VALUES, NUM_EXPANSION_CODES, Collections.singleton(Intent.ACTION_SEND)).iterator().next();
+                        Intent encodedIntent = alphaEncoderInterceptible.encodeMessage(message).iterator().next();
                         messsageEntry.setText("");
-
-                        // TODO: Set these in the encoding functions
-                        //encodedIntent.setType("plain/text");
-                        //encodedIntent.setAction();
 
                         Log.d(TAG, "Starting activity with Intent with action of " + encodedIntent.getAction());
 
@@ -148,19 +135,12 @@ public class SenderActivity extends Activity
                 new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        EncodingScheme schema = new BitstringEncoder();
-
-                        // TODO: Use constants instead of hard-coded build version
                         // TODO: Check the input validity
                         String message = messsageEntry.getText().toString();
 
                         Log.d(TAG, "Encoding message \"" + message + "\" as bitstring");
-                        Collection<Intent> encodedIntents = schema.encodeMessage(message, EncodingScheme.NUM_BASE_VALUES, NUM_EXPANSION_CODES, Collections.singleton(EncodingUtils.RECEIVER_COVERT_MESSAGE_ACTION));
+                        Collection<Intent> encodedIntents = bitstringEncoder.encodeMessage(message);
                         messsageEntry.setText("");
-
-                        // TODO: Set these in the encoding functions
-                        //encodedIntent.setType("plain/text");
-                        //encodedIntent.setAction();
 
                         for(Intent encodedIntent: encodedIntents) {
                             // TODO: Make these constants
@@ -177,18 +157,11 @@ public class SenderActivity extends Activity
                 new OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        EncodingScheme schema = new BitstringEncoder();
-
                         // TODO: Figure out this works with the enhanced method (I think it only kind-of does)
-                        // TODO: Use constants instead of hard-coded build version
                         // TODO: Check the input validity
                         String message = messsageEntry.getText().toString();
-                        Intent encodedIntent = schema.encodeMessage(message, EncodingScheme.NUM_BASE_VALUES, NUM_EXPANSION_CODES, Collections.singleton(Intent.ACTION_SEND)).iterator().next();
+                        Intent encodedIntent = bitstringEncoderInterceptible.encodeMessage(message).iterator().next();
                         messsageEntry.setText("");
-
-                        // TODO: Set these in the encoding functions
-                        //encodedIntent.setType("plain/text");
-                        //encodedIntent.setAction();
 
                         Log.d(TAG, "Starting activity with Intent with action of " + encodedIntent.getAction());
 

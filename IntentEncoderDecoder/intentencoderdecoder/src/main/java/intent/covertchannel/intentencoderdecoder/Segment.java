@@ -13,6 +13,8 @@ public class Segment {
     private String action;
     private int minVal;
     private int maxVal;
+    private String sigBitsInLastFragmentKey;
+    private int sigBitsInLastFragment;
     private Map<String, String> bitstringsByMessageKey;
 
     public Segment(String action, int minVal, int maxVal) {
@@ -20,7 +22,9 @@ public class Segment {
         this.minVal = minVal;
         this.maxVal = maxVal;
 
-        this.bitstringsByMessageKey = new HashMap<String, String>();
+        bitstringsByMessageKey = new HashMap<String, String>();
+        sigBitsInLastFragmentKey = null;
+        sigBitsInLastFragment = 0;
     }
 
     public String getAction() {
@@ -46,20 +50,5 @@ public class Segment {
     public Map<String, String> getFragmentMessageKeyMap() {
         // TODO: Return copy for better safety
         return bitstringsByMessageKey;
-    }
-
-    public Intent asEncodedIntent() {
-        Intent encodedIntent = new Intent();
-        encodedIntent.setType("plain/text");
-        encodedIntent.setAction(action);
-
-        Bundle msgBundle = new Bundle();
-        for(String msgKey: bitstringsByMessageKey.keySet()) {
-            // TODO: Encode each value string (confirm that these are bitstrings) into the bundle in an expansion-code and action-band value set offset aware way
-            // (probably a static function in BistringEncoder)
-        }
-
-        encodedIntent.putExtras(msgBundle);
-        return encodedIntent;
     }
 }

@@ -3,21 +3,14 @@ package intent.covertchannel.intentencoderdecoder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 import android.content.Intent;
 import android.os.Bundle;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
 import java.util.TreeSet;
 
-import android.content.Intent;
-import android.os.Bundle;
 import android.util.Log;
 
 // TODO: Make the encoding scheme more intelligent by encoding the more
@@ -30,8 +23,6 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
     // TODO: Change to a configurable value
     private static final int MAX_MESSAGE_SIZE = Integer.MAX_VALUE;
 
-    // TODO: Change to a configurable value
-    private static final int BUILD_VERSION = 8;
     private static final String TAG = "intent.covertchannel.intentencoderdecoder.LowerCaseAlphaEncoder";
 
     private EncodingDictionary dictionary;
@@ -41,16 +32,27 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
 
     // Comparator for ordering the String keys in a Bundle.
     private Comparator<String> keyComparator;
+    private int numBaseValues;
 
-    public LowerCaseAlphaEncoder()
+    // TODO: Use this value
+    private int numExpansionCodes;
+    private Set<String> actionStrings;
+    private int buildVersion;
+    private String message;
+
+    public LowerCaseAlphaEncoder(int numBaseValues, int numExpansionCodes, Set<String> actionStrings, int buildVersion)
     {
-        dictionary = new LowerCaseAlphaEncodingDictionary();
-        keySequence = new AlphabeticalKeySequence();
-        keyComparator = new AlphabeticalKeySequenceComparator();
+        this.numBaseValues = numBaseValues;
+        this.numExpansionCodes = numExpansionCodes;
+        this.actionStrings = actionStrings;
+        this.buildVersion = buildVersion;
+        this.dictionary = new LowerCaseAlphaEncodingDictionary();
+        this.keySequence = new AlphabeticalKeySequence();
+        this.keyComparator = new AlphabeticalKeySequenceComparator();
     }
 
     @Override
-    public Collection<Intent> encodeMessage(String message, int numBaseValues, int numExpansionCodes, Set<String> actionStrings) {
+    public Collection<Intent> encodeMessage(String message) {
         // TODO: Actually use all actions strings (for enhanced version)
         String actionString = actionStrings.iterator().next();
         char[] chars = message.toCharArray();
@@ -87,14 +89,16 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
      * as a {@link String} or {@code null} if the provided {@code carrier} or
      * the {@link android.os.Bundle} of extras for that {@link android.content.Intent} are {@code null}.
      */
-    public String decode(Intent carrier, int buildVersion) {
+
+    @Override
+    public String decodeMessage(Intent carrier) {
         if (carrier == null) {
-            return ""; // TODO: Make sure that this return value is handled properly
+            throw new IllegalArgumentException("Cannot decode message; carrier Intent is null");
         }
 
         Bundle dataBundle = carrier.getExtras();
         if (dataBundle == null) {
-            return ""; // TODO: Make sure that this return value is handled properly
+            throw new IllegalArgumentException("Cannot decode message; extras Bundle is null");
         }
 
         Set<String> bundleKeys;
@@ -126,17 +130,19 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
                 }
             }
         } catch(IllegalArgumentException e) {
-            // TODO: Log the fact that some message could not be fully encoded in a more application visible way
-
-            // TODO: DO NOT USE LOGCAT IN THE FINAL IMPLEMENTATION => too visible
-            Log.w(this.getClass().getName(), "Could not fully decode message: " + e.getMessage() + "\n" + e.getStackTrace().toString());
+            Log.w(TAG, "Could not fully decode message: " + e.getMessage() + "\n" + e.getStackTrace().toString());
         }
 
-        String message = messageBuilder.toString();
+        this.message = messageBuilder.toString();
 
         Log.d(EncodingUtils.TRACE_TAG, "Decoded message \"" + message + "\"");
 
         return message;
+    }
+
+    @Override
+    public String getMessage() {
+        return this.message;
     }
 
     public int decodeExpansionCode(Bundle nestedBundle, int buildVersion) {
@@ -159,7 +165,7 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
                     continue;
                 }
 
-                exCodeValue += EncodingUtils.decodeCharCode(nestedBundle, bundleKey, currentExpansionCode, buildVersion);
+                exCodeValue += EncodingUtils.decodeValueForEntry(nestedBundle, bundleKey, currentExpansionCode, buildVersion);
 
                 if(currentExpansionCode != 0) {
                     currentExpansionCode = 0;
@@ -205,7 +211,7 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
      */
     public boolean isCharSupported(char character)
     {
-        return dictionary.isSupportedChar(character, BUILD_VERSION);
+        return dictionary.isSupportedChar(character, buildVersion);
     }
 
     /**
@@ -228,8 +234,7 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
         Bundle dataPacket = new Bundle();
 
         for(int i = startIndex; i < endIndex; i++) {
-            // TODO: Make sure that passing in the key-generator works as expected
-            dataPacket = encodeChar(dataPacket, keySequence, charArray[i], BUILD_VERSION);
+            dataPacket = encodeChar(dataPacket, keySequence, charArray[i], buildVersion);
         }
 
         carrier.putExtras(dataPacket);
@@ -243,26 +248,23 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
 
     public Bundle encodeExcode(Bundle dataPacket, int expansionCode, String key, int buildVersion) {
         // TODO: Refactor based on new ex-code encoding scheme (but preserve old version)
-        if(expansionCode < 0) {
-            throw new IllegalArgumentException("Expansion code must be greater than or equal to zero");
+        // TODO: Ensure this works for all ex-code values (i.e. greater than one); suspect decoding is not up to snuff
+        if(expansionCode <= 0) {
+            throw new IllegalArgumentException("Expansion code must be greater than zero");
         }
 
         Log.d(EncodingUtils.TRACE_TAG, "Encoding expansion code " + expansionCode + " with key \"" + key + "\"");
 
-        Bundle nestedBundle = null;
-        if(expansionCode >= 1) {
-            nestedBundle = new Bundle();
-
-            KeyGenerator nestedKeyGenerator = new AlphabeticalKeySequence();
-            while (expansionCode > 0) {
-                if(expansionCode >= NUM_BASE_VALUES) {
-                    nestedBundle = EncodingUtils.encodeValue(nestedBundle, nestedKeyGenerator.next(), NUM_BASE_VALUES, buildVersion);
-                } else {
-                    nestedBundle = EncodingUtils.encodeValue(nestedBundle, nestedKeyGenerator.next(), expansionCode, buildVersion);
-                }
-
-                expansionCode -= NUM_BASE_VALUES;
+        Bundle nestedBundle = new Bundle();
+        KeyGenerator nestedKeyGenerator = new AlphabeticalKeySequence();
+        while (expansionCode > 0) {
+            if(expansionCode >= numBaseValues) {
+                nestedBundle = EncodingUtils.encodeValue(nestedBundle, nestedKeyGenerator.next(), numBaseValues, buildVersion);
+            } else {
+                nestedBundle = EncodingUtils.encodeValue(nestedBundle, nestedKeyGenerator.next(), expansionCode, buildVersion);
             }
+
+            expansionCode -= numBaseValues;
         }
 
         dataPacket.putBundle(key, nestedBundle);
@@ -284,8 +286,8 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
         }
 
         int charCode = dictionary.getCodeForValue(String.valueOf(c), buildVersion);
-        int expansionCode = charCode / NUM_BASE_VALUES;
-        int baseVal = charCode % NUM_BASE_VALUES;
+        int expansionCode = charCode / numBaseValues;
+        int baseVal = charCode % numBaseValues;
 
         Log.d(TAG, "Encoding character '" + c + "' as int value " + charCode + "; expansionCode = " + expansionCode + ", baseVal = " + baseVal);
 
@@ -306,7 +308,7 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
      * for that {@code key}.
      */
     private char decodeChar(Bundle dataPacket, String key, int expansionCode, int buildVersion) throws IllegalArgumentException {
-        int charCode = EncodingUtils.decodeCharCode(dataPacket, key, expansionCode, buildVersion);
+        int charCode = EncodingUtils.decodeValueForEntry(dataPacket, key, expansionCode, buildVersion);
 
         Log.d(EncodingUtils.TRACE_TAG, "Decoded char code of " + charCode + "for the key \"" + key + "\"");
 
@@ -449,7 +451,7 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
 //    private String decodeChar(Bundle dataPacket, String key, int buildVersion)
 //            throws IllegalArgumentException
 //    {
-//        int charCode = EncodingUtils.decodeCharCode(dataPacket, key, buildVersion);
+//        int charCode = EncodingUtils.decodeValueForEntry(dataPacket, key, buildVersion);
 //        return dictionary.getValue(charCode, buildVersion);
 //    }
 //}

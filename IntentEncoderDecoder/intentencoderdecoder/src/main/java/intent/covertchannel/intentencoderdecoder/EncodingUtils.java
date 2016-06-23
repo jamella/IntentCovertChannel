@@ -4,8 +4,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.Log;
@@ -19,18 +24,12 @@ import android.util.SparseArray;
  */
 
 // TODO: Allow a custom String Comparator to be passed in so that clients (the EncodingSchemas) can vary the key access ordering
-public class EncodingUtils
-{
+public class EncodingUtils {
 	/*
 	 * Custom action strings
 	 */
 	// NOTE: Any changes to these values must be reflected in the intent filter 
 	// for any Activity of Service which is listening for Intents with these actions
-	public static final String RECEIVER_COVERT_MESSAGE_ACTION = "receive_covert_message_action";
-	public static final String CALCULATE_THROUGHPUT_ACTION= "calculate_throughput_action";
-	public static final String CALCULATE_BIT_ERROR_RATE = "calculate_bit_error_rate";
-	public static final String SEND_TIME_ACTION = "send_time";
-	public static final String SEND_BIT_ERRORS_ACTION = "send_bit_errors";
 	
 	/*
 	 * String key constants
@@ -43,6 +42,21 @@ public class EncodingUtils
 
     public static final String TRACE_TAG = "intent.covertchannel.trace";
     private static final String TAG = "intent.covertchannel.intentencoderdecoder.EncodingUtils";
+
+    public static final int NUM_ALPHA_EXPANSION_CODES = 1;
+    public static final int NUM_EXPANSION_CODES = 22;
+
+    public static final String INTERCEPTIBLE_ACTION = Intent.ACTION_SEND;
+    public static final String ALPHA_ENCODING_ACTION = "receive_covert_message_action";
+
+    // Special actions
+    public static final String CALCULATE_THROUGHPUT_ACTION = "calculate_throughput_action";
+    public static final String CALCULATE_BIT_ERROR_RATE = "calculate_bit_error_rate";
+    public static final String SEND_TIME_ACTION = "send_time";
+    public static final String SEND_BIT_ERRORS_ACTION = "send_bit_errors";
+
+    public static final String[] ACTION_ARRAY = {"data_0", "data_1", "data_2", "data_3", "data_4", "data_5", "data_6", "data_7", "data_8", "data_9"};
+    public static final List<String> ACTIONS = Arrays.asList(ACTION_ARRAY);
 
     /**
 	 * Returns the number of characters which can be encoded without the use of
@@ -187,15 +201,14 @@ public class EncodingUtils
     }
 
     /**
-     * Note: This function assumes that any expansion code has already been extracted. TODO: Change this assumption for the other implementations
+     * Note: This function assumes that any expansion code has already been extracted.
      *
      * @param dataPacket
-     * @param key
-     * @param buildVersion
-     * @return
+     *@param key
+     * @param buildVersion   @return
      */
     // TODO: change to decodeValue
-    public static int decodeCharCode(Bundle dataPacket, String key, int expansionCode, int buildVersion) {
+    public static int decodeValueForEntry(Bundle dataPacket, String key, int expansionCode, int buildVersion) {
         Log.d(TRACE_TAG, "Decoding value for key \"" + key + "\"");
 
         /**
@@ -289,7 +302,7 @@ public class EncodingUtils
         } else if(dataPacket.getSparseParcelableArray(key) != null) {
             charCode = 20;
         } else {
-            throw new IllegalArgumentException("In EncodingUtils.decodeChar():" +
+            throw new IllegalArgumentException("In EncodingUtils.decodeValueForEntry():" +
                     " No value could be decoded for the given key (" + key + ")");
         }
 

@@ -31,7 +31,17 @@ public interface EncodingScheme {
     // TODO: Remove references to this; make it either a parameter or a system config value
     public static final int BUILD_VERSION = 8;
 
-    public abstract Collection<Intent> encodeMessage(String message, int numBaseValues, int numExpansionCodes, Set<String> actionStrings);
+    public Collection<Intent> encodeMessage(String message);
+
+    /**
+     * Attempts to decode the covert message contained in the {@code carrier}
+     * {@link android.content.Intent}'s {@link android.os.Bundle}. Will either return the decoded message
+     * as a {@link String} or {@code null} if the provided {@code carrier} or
+     * the {@link android.os.Bundle} of extras for that {@link android.content.Intent} are {@code null}.
+     */
+    public String decodeMessage(Intent carrier);
+
+    public String getMessage();
 
     // TODO: Cleanup
 

@@ -25,6 +25,8 @@
             android:enabled="true" >
             
             <!-- TODO: Use better, more generalized filters -->
+
+            <!-- TODO: Get this to work properly (does not currently appear on the list of options) -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
             </intent-filter>

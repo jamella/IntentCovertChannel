@@ -1,19 +1,18 @@
 package covertchannel.intent.receiver;
 
+import java.util.Collections;
 import java.util.Date;
 
-import android.app.IntentService;
 import android.app.Service;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 
 import intent.covertchannel.intentencoderdecoder.AlphabeticalKeySequence;
+import intent.covertchannel.intentencoderdecoder.BitstringEncoder;
+import intent.covertchannel.intentencoderdecoder.EncodingScheme;
 import intent.covertchannel.intentencoderdecoder.EncodingUtils;
 import intent.covertchannel.intentencoderdecoder.LowerCaseAlphaEncoder;
 
@@ -28,23 +27,18 @@ public class MessageReceiver extends Service {
     private SharedPreferences messageStore;
 
     // The schema to use for decoding received messages
-    private LowerCaseAlphaEncoder schema;
-    
+    private LowerCaseAlphaEncoder alphaEncoder;
+
+    private EncodingScheme bitstringEncoder;
+
+    // TODO: Incorporate BitString encoder (needs separate action set)
+
     // Generates an alphabetical sequence of keys for storing messages
     private AlphabeticalKeySequence keySequence;
     
 	// This is the object that receives interactions from clients.
     private final IBinder mBinder = new MessageBinder();
 
-    /* TODO: Remove
-    private final BroadcastReceiver receiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "Receiver service onReceive(): action = " + intent.getAction());
-            handleIntent(intent);
-        }
-    };
-    */
 
     @Override
     public void onCreate()
@@ -54,25 +48,14 @@ public class MessageReceiver extends Service {
         Log.d(TAG, "Receiver service starting");
 
 		messageStore = getSharedPreferences(MESSAGE_STORE_KEY, MODE_PRIVATE);
-		schema = new LowerCaseAlphaEncoder();
+        alphaEncoder = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.ALPHA_ENCODING_ACTION), EncodingScheme.BUILD_VERSION);
+        bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, EncodingUtils.ACTIONS, EncodingScheme.BUILD_VERSION);
 		keySequence = new AlphabeticalKeySequence();
-
-        /* TODO: Remove
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(EncodingUtils.RECEIVER_COVERT_MESSAGE_ACTION);
-        filter.addAction(EncodingUtils.CALCULATE_THROUGHPUT_ACTION);
-        filter.addAction(EncodingUtils.CALCULATE_BIT_ERROR_RATE);
-
-        // TODO: Add the remaining actions
-        //filter.addAction(EncodingUtils.);
-
-        registerReceiver(receiver, filter);
-        */
 	}
 
     private void handleIntent(Intent intent) {
         if(matchesFilter(intent)) {
-            Log.d(TAG, "Intent filter matched");
+            Log.d(TAG, "Intent filter matched for action " + intent.getAction());
 
             long endTime = new Date().getTime();
 
@@ -86,7 +69,7 @@ public class MessageReceiver extends Service {
             }
             else if(intentAction.equals(EncodingUtils.CALCULATE_BIT_ERROR_RATE))
             {
-                String receivedMessage = schema.decode(intent, BUILD_VERSION);
+                String receivedMessage = alphaEncoder.decodeMessage(intent);
 
                 Intent responseIntent = new Intent();
                 responseIntent.setAction(EncodingUtils.SEND_BIT_ERRORS_ACTION);
@@ -95,10 +78,10 @@ public class MessageReceiver extends Service {
 
                 sendBroadcast(responseIntent);
             }
-            else
-            {
-                // Default action
-                decodeAndStore(intent);
+            else if(intentAction.equals(EncodingUtils.ALPHA_ENCODING_ACTION)) {
+                decodeAndStore(intent, alphaEncoder);
+            } else { // Must be a bitstring-encoded Intent
+                decodeAndStore(intent, bitstringEncoder);
             }
         }
     }
@@ -125,7 +108,7 @@ public class MessageReceiver extends Service {
     @Override
     public IBinder onBind(Intent intent) {
     	if(matchesFilter(intent)) {
-    		decodeAndStore(intent);
+    		decodeAndStore(intent, bitstringEncoder);
     	}
     	
         return mBinder;
@@ -140,14 +123,16 @@ public class MessageReceiver extends Service {
 		// TODO: Represent the Intent filters as a custom class to allow the
 		// signature/pattern/microprotocol being used and looked for to
 		// vary independently
-	    return (EncodingUtils.RECEIVER_COVERT_MESSAGE_ACTION.equals(intent.getAction()) ||
+	    return (EncodingUtils.ALPHA_ENCODING_ACTION.equals(intent.getAction()) ||
 	    		EncodingUtils.CALCULATE_THROUGHPUT_ACTION.equals(intent.getAction()) ||
-	    		EncodingUtils.CALCULATE_BIT_ERROR_RATE.equals(intent.getAction()));
+	    		EncodingUtils.CALCULATE_BIT_ERROR_RATE.equals(intent.getAction()) ||
+                EncodingUtils.ACTIONS.contains(intent.getAction()));
     }
 	
-	private void decodeAndStore(Intent messageIntent) {
-		String message = schema.decode(messageIntent, BUILD_VERSION);
-    	SharedPreferences.Editor messageStoreEditor = messageStore.edit();
+	private void decodeAndStore(Intent messageIntent, EncodingScheme encoder) {
+		encoder.decodeMessage(messageIntent);
+        String message = encoder.getMessage(); // TODO: Incorporate logic for allowing all bitstring message segments to arrive first (i.e. wait for the message to be complete)
+        SharedPreferences.Editor messageStoreEditor = messageStore.edit();
     	messageStoreEditor.putString(keySequence.next(), message);
     	messageStoreEditor.commit();
 	}

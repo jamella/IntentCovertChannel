@@ -2,7 +2,10 @@ package intent.covertchannel.intentencoderdecoder;
 
 import android.util.Log;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
@@ -15,19 +18,17 @@ public class SegmentMap {
 
     private static final String TAG = "intent.covertchannel.intentencoderdecoder.SegmentMap";
 
-    // TODO: Cleanup
-    //private int numActions;
-    private Set<String> actionStrings;
+    private Collection<String> actionStrings;
     private int numUniqueValues;
     private int maxVal;
     private int minVal;
     private int maxFragmentLength;
     private int minFragmentLength;
-    private Set<Segment> segments;
+    private List<Segment> segments;
     private KeyGenerator keyGenerator;
     private Map<String, String> fragmentKeyMap;
 
-    public SegmentMap(Set<String> actionStrings, int numUniqueValues) {
+    public SegmentMap(Collection<String> actionStrings, int numUniqueValues) {
         this.actionStrings = actionStrings;
         this.numUniqueValues = numUniqueValues;
 
@@ -41,12 +42,11 @@ public class SegmentMap {
         fragmentKeyMap = new HashMap<String, String>();
     }
 
-    private static Set<Segment> initializeSegments(Set<String> actionStrings, int numUniqueValues) {
-        Set<Segment> segments = new HashSet<Segment>();
+    public static List<Segment> initializeSegments(Collection<String> actionStrings, int numUniqueValues) {
+        List<Segment> segments = new ArrayList<>();
         int valsPerSegment = numUniqueValues / actionStrings.size();
 
         int val = 0;
-        int i = 0;
 
         Log.d(TAG, "Initializing segments: numActions = " + actionStrings.size() + ", numUniqueValues = " + numUniqueValues);
 
@@ -62,7 +62,6 @@ public class SegmentMap {
                 segments.add(new Segment(actionIter.next(), val, nextVal));
             }
 
-            i++;
             val = nextVal + 1;
         }
 
@@ -81,6 +80,7 @@ public class SegmentMap {
     public String putFragment(String fragment) {
         int fragmentVal = validateAndConvertFragment(fragment);
 
+        // TODO: Reserve first key in every segment for the first metadata field (sig-bits in last fragment) and update the value on every put
         for(Segment segment: this.segments) {
             if(segment.valueWithinLimits(fragmentVal)) {
                 String key = keyGenerator.next();
@@ -93,7 +93,7 @@ public class SegmentMap {
         return null; // This should never happen
     }
 
-    public Set<Segment> getSegments() {
+    public List<Segment> getSegments() {
         return segments;
     }
 
