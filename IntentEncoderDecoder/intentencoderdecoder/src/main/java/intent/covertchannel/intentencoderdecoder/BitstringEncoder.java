@@ -79,20 +79,21 @@ public class BitstringEncoder implements EncodingScheme {
             Log.d(TAG, "\"" + key + "\" => " + fragment + "(" + Integer.parseInt(fragment, 2) + ")");
         }
 
-        Log.d(TAG, "");
         Log.d(TAG, "Message Segments");
 
         List<Intent> carriers = new ArrayList<>();
-
-        // TODO: Figure out why metadata fields are not being included
-
-        // TODO: Make sure that this get iterated over in order
         List<Segment> segments = segmentMap.getSegments();
         for(Segment segment: segments) {
             Log.d(TAG, "Action = \"" + segment.getAction() + "\"");
             Log.d(TAG, "Min Value = " + segment.getMinVal() + " (0b" + Integer.toBinaryString(segment.getMinVal()) + ")");
             Log.d(TAG, "Max Value = " + segment.getMaxVal() + " (0b" + Integer.toBinaryString(segment.getMaxVal()) + ")");
-            carriers.add(encodeSegment(segment));
+            Log.d(TAG, "segment entries: " + segment.getFragmentMessageKeyMap().size());
+            Log.d(TAG, segment.toString());
+
+            if(!segment.isEmpty()) {
+                Log.d(TAG, "Encoding segment \"" +segment.getAction() + "\"");
+                carriers.add(encodeSegment(segment));
+            }
         }
 
         return carriers;

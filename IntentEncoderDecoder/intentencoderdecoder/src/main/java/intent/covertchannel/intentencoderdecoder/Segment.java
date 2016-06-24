@@ -3,6 +3,7 @@ package intent.covertchannel.intentencoderdecoder;
 import android.content.Intent;
 import android.os.Bundle;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +13,38 @@ import java.util.Map;
  * An Action-based segment of a message.
  */
 public class Segment {
+
+    public static class MetadataEntry {
+        private String key;
+        private String valueAsBitstring;
+
+        public MetadataEntry(String key, String valueAsBitstring) {
+            this.key = key;
+            this.valueAsBitstring = valueAsBitstring;
+        }
+
+        public MetadataEntry() {
+            this.key = null;
+            this.valueAsBitstring = null;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public void setKey(String key) {
+            this.key = key;
+        }
+
+        public String getValueAsBitstring() {
+            return valueAsBitstring;
+        }
+
+        public void setValueAsBitstring(String valueAsBitstring) {
+            this.valueAsBitstring = valueAsBitstring;
+        }
+    }
+
     private static final int KEY_INDEX = 0;
     private static final int VALUE_INDEX = 1;
 
@@ -25,7 +58,7 @@ public class Segment {
     private int sigBitsInLastFragment;
     private Map<String, String> bitstringsByMessageKey;
 
-    private static final String[][] metadataKeys = {null, null, null, null};
+    private List<MetadataEntry> metadataEntries;
 
     public Segment(String action, int minVal, int maxVal) {
         this.action = action;
@@ -35,6 +68,9 @@ public class Segment {
         bitstringsByMessageKey = new HashMap<String, String>();
         sigBitsInLastFragmentKey = null;
         sigBitsInLastFragment = 0;
+
+        metadataEntries = new ArrayList<MetadataEntry>();
+        metadataEntries.add(new MetadataEntry());
     }
 
     public String getAction() {
@@ -58,30 +94,58 @@ public class Segment {
     }
 
     public Map<String, String> getFragmentMessageKeyMap() {
-        // TODO: Return copy for better safety
-        return bitstringsByMessageKey;
+        Map<String, String> fragmentMessageKeyMap  = new HashMap(bitstringsByMessageKey);
+
+        for(MetadataEntry metadataEntry: metadataEntries) {
+            fragmentMessageKeyMap.put(metadataEntry.getKey(), metadataEntry.getValueAsBitstring());
+        }
+
+        return fragmentMessageKeyMap;
     }
 
     public boolean hasMetadataKey(int keyIndex) {
-        return metadataKeys[keyIndex] != null;
+        return metadataEntries.get(keyIndex).getKey() != null;
     }
 
     public void setMetadataKey(String key, int keyIndex) {
-        if(keyIndex < 0 || keyIndex >= metadataKeys.length) {
-            throw new IndexOutOfBoundsException();
-        }
-
-        String[] keyAndValueArray = {key, null};
-        metadataKeys[keyIndex] = keyAndValueArray;
+        metadataEntries.get(keyIndex).setKey(key);
     }
 
     public String getMetadataKey(int keyIndex) {
-        return metadataKeys[keyIndex][KEY_INDEX];
+        return metadataEntries.get(keyIndex).getKey();
     }
 
     public void setMetadataValue(String value, int keyIndex) {
-        // TODO: Implement this in a less klunky way
-        metadataKeys[keyIndex][VALUE_INDEX] = value;
-        bitstringsByMessageKey.put(metadataKeys[keyIndex][VALUE_INDEX], value);
+        metadataEntries.get(keyIndex).setValueAsBitstring(value);
+    }
+
+    /**
+     * @return The number of data entries in this Segment.
+     */
+    public int length() {
+        int length = 0;
+        for(Map.Entry<String, String> entry: bitstringsByMessageKey.entrySet()) {
+            if(entry.getKey() != null && entry.getValue() != null) {
+                length++;
+            }
+        }
+
+        return length;
+    }
+
+    public boolean isEmpty() {
+        return length() == 0;
+    }
+
+    public String toString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("Segment[action = " + action + "]\n");
+
+        Map<String, String> fragmentMessageKeyMap = this.getFragmentMessageKeyMap();
+        for(Map.Entry<String, String> entry: fragmentMessageKeyMap.entrySet()) {
+            stringBuilder.append(entry.getKey() + " => " + entry.getValue() + "\n");
+        }
+
+        return stringBuilder.toString();
     }
 }
