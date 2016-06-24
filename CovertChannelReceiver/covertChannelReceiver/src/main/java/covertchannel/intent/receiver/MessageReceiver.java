@@ -2,6 +2,9 @@ package covertchannel.intent.receiver;
 
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 import android.app.Service;
 import android.content.Intent;
@@ -131,7 +134,16 @@ public class MessageReceiver extends Service {
 	
 	private void decodeAndStore(Intent messageIntent, EncodingScheme encoder) {
 		encoder.decodeMessage(messageIntent);
-        String message = encoder.getMessage(); // TODO: Incorporate logic for allowing all bitstring message segments to arrive first (i.e. wait for the message to be complete)
+
+        // TODO: Finish implementing
+        List<String> orderedMessageKeys = encoder.getOrderedMessageKeys();
+        Map<String, String> actionToMessageMap = encoder.getActionToMessageMap();
+
+        //String message = encoder.getMessage(); // TODO: Incorporate logic for allowing all bitstring message segments to arrive first (i.e. wait for the message to be complete)
+
+        // TODO: iterate over the actionToMessageMap in key order and append the bitstring message segments; then reconstruct the original message string
+        // from byte[]
+
         SharedPreferences.Editor messageStoreEditor = messageStore.edit();
     	messageStoreEditor.putString(keySequence.next(), message);
     	messageStoreEditor.commit();

@@ -68,7 +68,7 @@ public class BitstringEncoder implements EncodingScheme {
 
     @Override
     public Collection<Intent> encodeMessage(String message) {
-        Message messageToSend = buildMessage(strToBitString(message), maxValue, fragmentMaxBitLength, fragmentMinBitLength);
+        Message messageToSend = buildMessage(strToBitString(message), maxValue, segmentMaxBitLength, segmentMinBitLength);
         List<String> fragments = messageToSend.getFragments();
 
         // TODO: Make sure that the fragments are being iterated over in order
@@ -143,7 +143,10 @@ public class BitstringEncoder implements EncodingScheme {
         try {
             Iterator<String> bundleKeyIter = bundleKeys.iterator();
             String sigBitsInLastFragmentKey = bundleKeyIter.next();
-            String sigBitsMetadataBitstring = decodeFragmentAsBitstring(dataBundle, sigBitsInLastFragmentKey, actionOffset);
+
+            // Metadata keys do not use the action offset
+            String sigBitsMetadataBitstring = decodeFragmentAsBitstring(dataBundle, sigBitsInLastFragmentKey, 0);
+
             int numSigBitsInLastFragment = bitstringToInt(sigBitsMetadataBitstring);
 
             Log.d(TAG, "Number of significant bits in the last fragment: " + numSigBitsInLastFragment);
@@ -192,6 +195,7 @@ public class BitstringEncoder implements EncodingScheme {
         value += actionOffset;
         String msgBitstring = Integer.toBinaryString(value);
 
+        // TODO: Make sure that this is working properly
         if(msgBitstring.length() < this.fragmentMinBitLength) {
             msgBitstring = leftPadWithZeroes(msgBitstring, this.fragmentMinBitLength - msgBitstring.length());
         }
@@ -260,6 +264,11 @@ public class BitstringEncoder implements EncodingScheme {
 
         actionToMessageMap.clear();
         return msgBuilder.toString();
+    }
+
+    @Override
+    public Map<String, String> getActionToMessageMap() {
+        return new HashMap<String, String>(actionToMessageMap);
     }
 
     // Taken from http://stackoverflow.com/questions/3305059/how-do-you-calculate-log-base-2-in-java-for-integers;
@@ -360,14 +369,32 @@ public class BitstringEncoder implements EncodingScheme {
         return msgStr;
     }
 
-    public static int bitstringToInt(String bitstring) {
+    public static int bitstringToInt(String inputString) {
+        // TODO: Remove
+        //Log.d(TAG, "Converting bitstring \"" + inputString + "\" to int");
+
+        /* TODO: Remove
+        // Makes sure that the values are interpretted as absolute values (i.e. no negative values allowed)
+        String bitstring;
+        if(inputString.charAt(0) == '1') {
+            bitstring = "0" + inputString;
+        } else {
+            bitstring = inputString;
+        }
+
+        return new BigInteger(bitstring, 2).intValue();
+        */
+
         // Note: if this BigInteger is too big to fit in an int, only the low-order 32 bits are returned.
         // This conversion can lose information about the overall magnitude of the BigInteger value as well
         // as return a result with the opposite sign.
-        return new BigInteger(bitstring, 2).intValue();
+        return new BigInteger(inputString, 2).intValue();
     }
 
     private Message buildMessage(String bitstring, int maxValue, int fragmentMaxBitLength, int fragmentMinBitLength) {
+        Log.d(TAG, "Building message for bitstring: \"" + bitstring + "\"\nwith max value = " +
+                maxValue + ", fragmentMaxBitLength = " + fragmentMaxBitLength + ", fragmentMinBitLength = " + fragmentMinBitLength);
+
         List<String> fragments = new ArrayList<String>();
 
         String currentFragment = "";
@@ -399,7 +426,6 @@ public class BitstringEncoder implements EncodingScheme {
             }
 
             fragments.add(currentFragment);
-            currentFragment = "";
         }
 
         return new Message(fragments, lengthOfLastFragment);
@@ -429,12 +455,17 @@ public class BitstringEncoder implements EncodingScheme {
         // TODO: Incorporate concept of metadata fields (first entry needs to be the number of significant bits in the last fragment for each segment [i.e. Intent])
         Bundle msgBundle = new Bundle();
 
+        Set<String> metadataKeys = segment.getMetadataKeys();
         Map<String, String> bitstringsByMessageKey = segment.getFragmentMessageKeyMap();
         for(String msgKey: bitstringsByMessageKey.keySet()) {
             String fragmentBits = bitstringsByMessageKey.get(msgKey);
+            int value = bitstringToInt(fragmentBits);
 
-            // Subtract minVal to account for the action-defined value band that this segment belongs to
-            int value = bitstringToInt(fragmentBits) - segment.getMinVal();
+            // Don't use action off set for metadata keys
+            if(!metadataKeys.contains(msgKey)) {
+                // Subtract minVal to account for the action-defined value band that this segment belongs to
+                value -= segment.getMinVal();
+            }
 
             Log.d(TAG, "Encoding bitstring " + fragmentBits + " as value " + value + " with action " + segment.getAction());
             msgBundle = encodeValue(msgBundle, segment.getAction(), value, msgKey);

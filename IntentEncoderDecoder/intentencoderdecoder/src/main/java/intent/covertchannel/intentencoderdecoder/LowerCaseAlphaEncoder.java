@@ -3,7 +3,9 @@ package intent.covertchannel.intentencoderdecoder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import android.content.Intent;
@@ -143,6 +145,13 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
     @Override
     public String getMessage() {
         return this.message;
+    }
+
+    @Override
+    public Map<String, String> getActionToMessageMap() {
+        Map<String, String> actionToMessageMap = new HashMap();
+        actionToMessageMap.put(this.actionStrings.iterator().next(), this.message);
+        return actionToMessageMap;
     }
 
     public int decodeExpansionCode(Bundle nestedBundle, int buildVersion) {

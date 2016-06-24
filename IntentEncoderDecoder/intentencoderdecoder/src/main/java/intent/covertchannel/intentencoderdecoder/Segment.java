@@ -6,8 +6,10 @@ import android.os.Bundle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * An Action-based segment of a message.
@@ -113,6 +115,15 @@ public class Segment {
 
     public String getMetadataKey(int keyIndex) {
         return metadataEntries.get(keyIndex).getKey();
+    }
+
+    public Set<String> getMetadataKeys() {
+        Set<String> metadataKeys = new HashSet();
+        for(MetadataEntry entry: metadataEntries) {
+            metadataKeys.add(entry.getKey());
+        }
+
+        return metadataKeys;
     }
 
     public void setMetadataValue(String value, int keyIndex) {
