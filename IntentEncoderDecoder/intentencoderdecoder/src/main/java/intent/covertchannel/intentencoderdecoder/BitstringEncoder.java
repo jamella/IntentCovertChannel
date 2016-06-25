@@ -20,6 +20,8 @@ import java.util.TreeSet;
  */
 public class BitstringEncoder implements EncodingScheme {
 
+    // TODO: Implement concept of message and/or app ID's (later)
+
     // TODO: Cleanup
     //private static final String TAG = "intent.covertchannel.intentencoderdecoder.BitstringEncoder";
     private static final String TAG = EncodingUtils.TRACE_TAG;
@@ -99,11 +101,8 @@ public class BitstringEncoder implements EncodingScheme {
         return carriers;
     }
 
-    @Override
-    public String decodeMessage(Intent carrier) {
-        Log.d(TAG, "Starting to decode message: " + carrier.getAction());
-
-        // TODO: Implement concept of message and/or app ID's (later)
+    public String decodeMessageAsBitstring(Intent carrier) {
+        Log.d(TAG, "Starting to decode bitstring for \"" + carrier.getAction() + "\"");
 
         if (carrier == null) {
             throw new IllegalArgumentException("Cannot decode message; carrier Intent is null");
@@ -112,22 +111,22 @@ public class BitstringEncoder implements EncodingScheme {
         if (carrier.getAction() == null) {
             throw new IllegalArgumentException("Cannot decode message; carrier Intent action is null");
         }
-        if(actionToMessageMap.containsKey(carrier.getAction())) {
+        if (actionToMessageMap.containsKey(carrier.getAction())) {
             throw new IllegalArgumentException("Message action " + carrier.getAction() + " has already been seen");
         }
 
         Bundle dataBundle = carrier.getExtras();
-        if(dataBundle == null) {
+        if (dataBundle == null) {
             throw new IllegalArgumentException("Cannot decode message; extras Bundle is null");
         }
 
-        if(dataBundle.isEmpty()) {
+        if (dataBundle.isEmpty()) {
             Log.d(TAG, "No information found for carrier with action \"" + carrier.getAction() + "\"");
             return "";
         }
 
         // Must have at least the first metadata entry and one data entry
-        if(dataBundle.size() < 2) {
+        if (dataBundle.size() < 2) {
             throw new IllegalArgumentException("Data bundle must contain data fields in addition to metadata fields");
         }
 
@@ -140,10 +139,10 @@ public class BitstringEncoder implements EncodingScheme {
         List<String> messageFragments = new ArrayList<>();
         StringBuilder msgBuilder = new StringBuilder();
 
-        try {
-            Iterator<String> bundleKeyIter = bundleKeys.iterator();
-            String sigBitsInLastFragmentKey = bundleKeyIter.next();
+        Iterator<String> bundleKeyIter = bundleKeys.iterator();
+        String sigBitsInLastFragmentKey = bundleKeyIter.next();
 
+        try {
             // Metadata keys do not use the action offset
             String sigBitsMetadataBitstring = decodeFragmentAsBitstring(dataBundle, sigBitsInLastFragmentKey, 0);
 
@@ -151,7 +150,7 @@ public class BitstringEncoder implements EncodingScheme {
 
             Log.d(TAG, "Number of significant bits in the last fragment: " + numSigBitsInLastFragment);
 
-            while(bundleKeyIter.hasNext()) {
+            while (bundleKeyIter.hasNext()) {
                 String key = bundleKeyIter.next();
                 String fragment = decodeFragmentAsBitstring(dataBundle, key, actionOffset);
                 messageFragments.add(fragment);
@@ -161,8 +160,9 @@ public class BitstringEncoder implements EncodingScheme {
             // been padded (and therefore need to have the padding removed from the end [least significant
             // bits])
             for(int i = 0; i < messageFragments.size() - 1; i++) {
-                String fragmentString = bitStringToStr(messageFragments.get(i));
-                msgBuilder.append(fragmentString);
+                // TODO: Cleanup
+                //String fragmentString = bitStringToStr(messageFragments.get(i));
+                msgBuilder.append(messageFragments.get(i));
             }
 
             String lastFragmentBitstring = messageFragments.get(messageFragments.size() - 1);
@@ -171,14 +171,30 @@ public class BitstringEncoder implements EncodingScheme {
                 lastFragmentBitstring = lastFragmentBitstring.substring(0, lastFragmentBitstring.length() - numPaddingBits);
             }
 
-            String lastFragmentString = bitStringToStr(lastFragmentBitstring);
-            msgBuilder.append(lastFragmentString);
+            // TODO: Cleanup
+            //String lastFragmentString = bitStringToStr(lastFragmentBitstring);
+            //msgBuilder.append(lastFragmentString);
+            msgBuilder.append(lastFragmentBitstring);
         } catch(IllegalArgumentException e) {
             Log.w(TAG, "Could not fully decode message: " + e.getMessage() + "\n" + e.getStackTrace().toString());
         }
 
-        String msg = msgBuilder.toString();
-        actionToMessageMap.put(carrier.getAction(), msg);
+        String joinedBitstring = msgBuilder.toString();
+
+        Log.d(TAG, "Decoded bitstring for action \"" + carrier.getAction() + "\": " + joinedBitstring);
+
+        actionToMessageMap.put(carrier.getAction(), joinedBitstring);
+        return joinedBitstring;
+    }
+
+    @Override
+    public String decodeMessage(Intent carrier) {
+        Log.d(TAG, "Starting to decode message: " + carrier.getAction());
+        String joinedBitstring = decodeMessageAsBitstring(carrier);
+        String msg = bitStringToStr(joinedBitstring);
+
+        // TODO: Cleanup
+        //actionToMessageMap.put(carrier.getAction(), msg);
         return msg;
     }
 
@@ -268,7 +284,9 @@ public class BitstringEncoder implements EncodingScheme {
 
     @Override
     public Map<String, String> getActionToMessageMap() {
-        return new HashMap<String, String>(actionToMessageMap);
+        // TODO: Cleanup
+        //return new HashMap<String, String>(actionToMessageMap);
+        return actionToMessageMap;
     }
 
     // Taken from http://stackoverflow.com/questions/3305059/how-do-you-calculate-log-base-2-in-java-for-integers;
@@ -353,6 +371,8 @@ public class BitstringEncoder implements EncodingScheme {
     }
 
     public static String bitStringToStr(String bitstring) throws NumberFormatException {
+        Log.d(TAG, "Converting bitstring\"" + bitstring + "\" to a text string");
+
         String[] byteStrings = bitstringToByteStrings(bitstring);
         String msgStr = "";
         for(String byteStr: byteStrings) {
@@ -366,11 +386,12 @@ public class BitstringEncoder implements EncodingScheme {
             msgStr += "" + c;
         }
 
+        Log.d(TAG, "\"" + bitstring + "\" as text string: " + msgStr);
         return msgStr;
     }
 
     public static int bitstringToInt(String inputString) {
-        // TODO: Remove
+        // TODO: Remove 
         //Log.d(TAG, "Converting bitstring \"" + inputString + "\" to int");
 
         /* TODO: Remove
@@ -523,6 +544,10 @@ public class BitstringEncoder implements EncodingScheme {
 
         msgBundle.putBundle(key, nestedBundle);
         return msgBundle;
+    }
+
+    public List<String> getOrderedMessageActionStrings() {
+        return new ArrayList<String>(actionStrings);
     }
 
     // TODO: Remove

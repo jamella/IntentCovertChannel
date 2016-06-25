@@ -4,7 +4,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 
 import android.app.Service;
 import android.content.Intent;
@@ -13,7 +12,6 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 
-import intent.covertchannel.intentencoderdecoder.AlphabeticalKeySequence;
 import intent.covertchannel.intentencoderdecoder.BitstringEncoder;
 import intent.covertchannel.intentencoderdecoder.EncodingScheme;
 import intent.covertchannel.intentencoderdecoder.EncodingUtils;
@@ -21,7 +19,11 @@ import intent.covertchannel.intentencoderdecoder.LowerCaseAlphaEncoder;
 
 public class MessageReceiver extends Service {
     protected static final String MESSAGE_STORE_KEY = "covert_message_store";
-	
+    protected static final String MESSAGE_READY_KEY = "message_ready";
+
+    private static final String ALPHA_ENCODED_MESSAGE_STORAGE_KEY = "alpha_encoded";
+    private static final String BITSTRING_ENCODED_MESSAGE_STORAGE_KEY = "bitstring_encoded";
+
     // TODO: Make this configurable
     private static final int BUILD_VERSION = 8;
     private static final String TAG = "covertchannel.intent.receiver.MessageReceiver";
@@ -29,31 +31,14 @@ public class MessageReceiver extends Service {
     // Used to persist received messages so that they can be accessed later
     private SharedPreferences messageStore;
 
-    // The schema to use for decoding received messages
-    private LowerCaseAlphaEncoder alphaEncoder;
-
-    private EncodingScheme bitstringEncoder;
-
-    // TODO: Incorporate BitString encoder (needs separate action set)
-
-    // Generates an alphabetical sequence of keys for storing messages
-    private AlphabeticalKeySequence keySequence;
-    
 	// This is the object that receives interactions from clients.
     private final IBinder mBinder = new MessageBinder();
 
-
     @Override
-    public void onCreate()
-	{
+    public void onCreate() {
 		super.onCreate();
-
         Log.d(TAG, "Receiver service starting");
-
 		messageStore = getSharedPreferences(MESSAGE_STORE_KEY, MODE_PRIVATE);
-        alphaEncoder = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.ALPHA_ENCODING_ACTION), EncodingScheme.BUILD_VERSION);
-        bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, EncodingUtils.ACTIONS, EncodingScheme.BUILD_VERSION);
-		keySequence = new AlphabeticalKeySequence();
 	}
 
     private void handleIntent(Intent intent) {
@@ -63,15 +48,13 @@ public class MessageReceiver extends Service {
             long endTime = new Date().getTime();
 
             String intentAction = intent.getAction();
-            if(intentAction.equals(EncodingUtils.CALCULATE_THROUGHPUT_ACTION))
-            {
+            if(intentAction.equals(EncodingUtils.CALCULATE_THROUGHPUT_ACTION)) {
                 Intent responseIntent = new Intent();
                 responseIntent.setAction(EncodingUtils.SEND_TIME_ACTION);
                 responseIntent.putExtra(EncodingUtils.END_TIME_KEY, endTime);
                 sendBroadcast(responseIntent);
-            }
-            else if(intentAction.equals(EncodingUtils.CALCULATE_BIT_ERROR_RATE))
-            {
+            } else if(intentAction.equals(EncodingUtils.CALCULATE_BIT_ERROR_RATE)) {
+                LowerCaseAlphaEncoder alphaEncoder = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.ALPHA_ENCODING_ACTION), EncodingScheme.BUILD_VERSION);
                 String receivedMessage = alphaEncoder.decodeMessage(intent);
 
                 Intent responseIntent = new Intent();
@@ -80,11 +63,10 @@ public class MessageReceiver extends Service {
                 responseIntent.putExtra(EncodingUtils.RECEIVED_MESSAGE_KEY, receivedMessage);
 
                 sendBroadcast(responseIntent);
-            }
-            else if(intentAction.equals(EncodingUtils.ALPHA_ENCODING_ACTION)) {
-                decodeAndStore(intent, alphaEncoder);
+            } else if(intentAction.equals(EncodingUtils.ALPHA_ENCODING_ACTION)) {
+                decodeAndStore(intent);
             } else { // Must be a bitstring-encoded Intent
-                decodeAndStore(intent, bitstringEncoder);
+                decodeAndStoreBitstring(intent);
             }
         }
     }
@@ -110,15 +92,11 @@ public class MessageReceiver extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-    	if(matchesFilter(intent)) {
-    		decodeAndStore(intent, bitstringEncoder);
-    	}
-    	
+        handleIntent(intent);
         return mBinder;
     }
 
-    private boolean matchesFilter(Intent intent)
-    {
+    private boolean matchesFilter(Intent intent) {
 	    // TODO: Implement Intent filtering so that only Intents which are
 		// covertly marked as containing a covert message (such as through
 		// the ClipData channel) will attempted to be decoded
@@ -132,22 +110,48 @@ public class MessageReceiver extends Service {
                 EncodingUtils.ACTIONS.contains(intent.getAction()));
     }
 	
-	private void decodeAndStore(Intent messageIntent, EncodingScheme encoder) {
-		encoder.decodeMessage(messageIntent);
-
-        // TODO: Finish implementing
-        List<String> orderedMessageKeys = encoder.getOrderedMessageKeys();
-        Map<String, String> actionToMessageMap = encoder.getActionToMessageMap();
-
-        //String message = encoder.getMessage(); // TODO: Incorporate logic for allowing all bitstring message segments to arrive first (i.e. wait for the message to be complete)
-
-        // TODO: iterate over the actionToMessageMap in key order and append the bitstring message segments; then reconstruct the original message string
-        // from byte[]
+	private void decodeAndStore(Intent messageIntent) {
+        LowerCaseAlphaEncoder alphaEncoder = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.ALPHA_ENCODING_ACTION), EncodingScheme.BUILD_VERSION);
+        String message = alphaEncoder.decodeMessage(messageIntent);
 
         SharedPreferences.Editor messageStoreEditor = messageStore.edit();
-    	messageStoreEditor.putString(keySequence.next(), message);
+    	messageStoreEditor.putString(ALPHA_ENCODED_MESSAGE_STORAGE_KEY, message);
+        messageStoreEditor.putBoolean(MESSAGE_READY_KEY, true);
     	messageStoreEditor.commit();
 	}
+
+    private void decodeAndStoreBitstring(Intent messageIntent) {
+        BitstringEncoder bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, EncodingUtils.ACTIONS, EncodingScheme.BUILD_VERSION);
+        bitstringEncoder.decodeMessageAsBitstring(messageIntent);
+
+        // TODO: Implement and integrate the concept of segment number metadata fields; don't display message until fully arrive
+        // TODO: Write that concept into paper
+
+        // TODO: Finish implementing
+        List<String> orderedMessageActionStrings = bitstringEncoder.getOrderedMessageActionStrings();
+        Map<String, String> actionToMessageMap = bitstringEncoder.getActionToMessageMap();
+
+        SharedPreferences.Editor messageStoreEditor = messageStore.edit();
+        StringBuilder bitstringBldr = new StringBuilder();
+        for(String action: orderedMessageActionStrings) {
+            String bitstring = actionToMessageMap.get(action);
+            Log.d(TAG, "Found bitstring of \"" + bitstring + "\" for action \"" + action + "\"");
+
+            if(bitstring != null) {
+                bitstringBldr.append(bitstring);
+                messageStoreEditor.putString(action, bitstring);
+            }
+        }
+
+        // TODO: Cleanup
+        // TODO: Make sure that this works
+        //String message = BitstringEncoder.bitStringToStr(bitstringBldr.toString());
+
+        // TODO: Implement check for the number of segments received (stored by action); if all have been received
+        // set to true; otherwise, reset to false (also need to clear out the action key values)
+        messageStoreEditor.putBoolean(MESSAGE_READY_KEY, false);
+        messageStoreEditor.commit();
+    }
 
 	public class MessageBinder extends Binder {
 		public MessageReceiver getService()

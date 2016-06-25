@@ -43,10 +43,10 @@ public class CovertChannelReceiver extends Activity
     	// inside the MessageReceiver service
     	
     	SharedPreferences.Editor messageStoreEditor = messageStore.edit();
-    	
+
+        // TODO: Implement hard-coded isMessageReady value; only read and remove if set to true
     	Map<String, ?> messages = messageStore.getAll();
-    	for(String key: messages.keySet())
-    	{
+    	for(String key: messages.keySet()) {
     		message += messages.get(key) + " ";
     		
     		// Removes the message from the store
