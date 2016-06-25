@@ -73,7 +73,6 @@ public class BitstringEncoder implements EncodingScheme {
         Message messageToSend = buildMessage(strToBitString(message), maxValue, segmentMaxBitLength, segmentMinBitLength);
         List<String> fragments = messageToSend.getFragments();
 
-        // TODO: Make sure that the fragments are being iterated over in order
         Log.d(TAG, "Message Fragments with Keys:");
         SegmentMap segmentMap = new SegmentMap(actionStrings, numUniqueValues);
         for(String fragment: fragments) {
@@ -83,8 +82,11 @@ public class BitstringEncoder implements EncodingScheme {
 
         Log.d(TAG, "Message Segments");
 
+        int segmentIndex = 1;
+        int segmentCount = 0;
         List<Intent> carriers = new ArrayList<>();
         List<Segment> segments = segmentMap.getSegments();
+        List<Segment> segmentsToEncode = new ArrayList();
         for(Segment segment: segments) {
             Log.d(TAG, "Action = \"" + segment.getAction() + "\"");
             Log.d(TAG, "Min Value = " + segment.getMinVal() + " (0b" + Integer.toBinaryString(segment.getMinVal()) + ")");
@@ -93,9 +95,18 @@ public class BitstringEncoder implements EncodingScheme {
             Log.d(TAG, segment.toString());
 
             if(!segment.isEmpty()) {
-                Log.d(TAG, "Encoding segment \"" +segment.getAction() + "\"");
-                carriers.add(encodeSegment(segment));
+                Log.d(TAG, "Encoding segment \"" + segment.getAction() + "\"");
+                // TODO: Make sure that this doesn't lose bits; may need helper function
+                segment.setMetadataValue(Segment.SEGMENT_NUMBER_KEY, Integer.toBinaryString(segmentIndex));
+                segmentsToEncode.add(segment);
+                segmentIndex++;
+                segmentCount++;
             }
+        }
+
+        for(Segment segment: segmentsToEncode) {
+            segment.setMetadataValue(Segment.MESSAGE_SEGMENT_COUNT_KEY, Integer.toBinaryString(segmentCount));
+            carriers.add(encodeSegment(segment));
         }
 
         return carriers;
@@ -125,8 +136,8 @@ public class BitstringEncoder implements EncodingScheme {
             return "";
         }
 
-        // Must have at least the first metadata entry and one data entry
-        if (dataBundle.size() < 2) {
+        // Must have all of the metadata entries and at least one data entry
+        if (dataBundle.size() < (Segment.NUM_METADATA_FIELDS + 1)) {
             throw new IllegalArgumentException("Data bundle must contain data fields in addition to metadata fields");
         }
 
@@ -141,6 +152,11 @@ public class BitstringEncoder implements EncodingScheme {
 
         Iterator<String> bundleKeyIter = bundleKeys.iterator();
         String sigBitsInLastFragmentKey = bundleKeyIter.next();
+        String segmentNumberKey = bundleKeyIter.next();
+        String segmentCountKey = bundleKeyIter.next();
+
+        // TODO: Retrieve/decode the segment number and count values and bubble them up to the receiver service
+        HERE!
 
         try {
             // Metadata keys do not use the action offset
@@ -160,8 +176,6 @@ public class BitstringEncoder implements EncodingScheme {
             // been padded (and therefore need to have the padding removed from the end [least significant
             // bits])
             for(int i = 0; i < messageFragments.size() - 1; i++) {
-                // TODO: Cleanup
-                //String fragmentString = bitStringToStr(messageFragments.get(i));
                 msgBuilder.append(messageFragments.get(i));
             }
 
@@ -171,9 +185,6 @@ public class BitstringEncoder implements EncodingScheme {
                 lastFragmentBitstring = lastFragmentBitstring.substring(0, lastFragmentBitstring.length() - numPaddingBits);
             }
 
-            // TODO: Cleanup
-            //String lastFragmentString = bitStringToStr(lastFragmentBitstring);
-            //msgBuilder.append(lastFragmentString);
             msgBuilder.append(lastFragmentBitstring);
         } catch(IllegalArgumentException e) {
             Log.w(TAG, "Could not fully decode message: " + e.getMessage() + "\n" + e.getStackTrace().toString());
@@ -191,11 +202,7 @@ public class BitstringEncoder implements EncodingScheme {
     public String decodeMessage(Intent carrier) {
         Log.d(TAG, "Starting to decode message: " + carrier.getAction());
         String joinedBitstring = decodeMessageAsBitstring(carrier);
-        String msg = bitStringToStr(joinedBitstring);
-
-        // TODO: Cleanup
-        //actionToMessageMap.put(carrier.getAction(), msg);
-        return msg;
+        return bitStringToStr(joinedBitstring);
     }
 
     private String decodeFragmentAsBitstring(Bundle dataBundle, String key, int actionOffset) {
@@ -211,7 +218,6 @@ public class BitstringEncoder implements EncodingScheme {
         value += actionOffset;
         String msgBitstring = Integer.toBinaryString(value);
 
-        // TODO: Make sure that this is working properly
         if(msgBitstring.length() < this.fragmentMinBitLength) {
             msgBitstring = leftPadWithZeroes(msgBitstring, this.fragmentMinBitLength - msgBitstring.length());
         }
@@ -284,8 +290,6 @@ public class BitstringEncoder implements EncodingScheme {
 
     @Override
     public Map<String, String> getActionToMessageMap() {
-        // TODO: Cleanup
-        //return new HashMap<String, String>(actionToMessageMap);
         return actionToMessageMap;
     }
 
@@ -314,9 +318,7 @@ public class BitstringEncoder implements EncodingScheme {
         try {
             String[] byteStrings = new String[text.length()];
 
-            // TODO: Remove
             Log.d(TAG, "String \"" + text + "\" as bytes:");
-            //
 
             int i = 0;
             for (char c: text.toCharArray()) {
@@ -380,7 +382,6 @@ public class BitstringEncoder implements EncodingScheme {
 
             char c = (char) Integer.parseInt(byteStr, 2);
 
-            // TODO: Remove
             Log.d(TAG, "Character: " + c);
 
             msgStr += "" + c;
@@ -473,7 +474,6 @@ public class BitstringEncoder implements EncodingScheme {
         encodedIntent.setType("plain/text");
         encodedIntent.setAction(segment.getAction());
 
-        // TODO: Incorporate concept of metadata fields (first entry needs to be the number of significant bits in the last fragment for each segment [i.e. Intent])
         Bundle msgBundle = new Bundle();
 
         Set<String> metadataKeys = segment.getMetadataKeys();
@@ -496,7 +496,6 @@ public class BitstringEncoder implements EncodingScheme {
         return encodedIntent;
     }
 
-    // TODO: Create decode version
     private Bundle encodeValue(Bundle msgBundle, String action, int value, String msgKey) {
         int expansionCode = value / numBaseValues;
         int baseVal = value % numBaseValues;
@@ -510,7 +509,6 @@ public class BitstringEncoder implements EncodingScheme {
         return EncodingUtils.encodeValue(msgBundle, msgKey, baseVal, buildVersion);
     }
 
-    // TODO: Create decode version
     private Bundle encodeExcodeAndValue(Bundle msgBundle, String key, int baseValue, int expansionCode) {
         if(expansionCode <= 0) {
             throw new IllegalArgumentException("Expansion code must be greater than zero");
@@ -549,66 +547,4 @@ public class BitstringEncoder implements EncodingScheme {
     public List<String> getOrderedMessageActionStrings() {
         return new ArrayList<String>(actionStrings);
     }
-
-    // TODO: Remove
-    /*
-    public static void main(String[] args) {
-        try {
-            String msg = "´The quick brown fox´";
-
-            System.out.println("Converting \"" + msg + "\" to a message fragments..\n");
-            System.out.println("As bitstring: " + strToBitString(msg) + "\n");
-
-            Message messageToSend = buildMessage(strToBitString(msg));
-            Collection<String> fragments = messageToSend.getFragments();
-
-            System.out.println("Message Fragments with Keys:");
-            SegmentMap segmentMap = new SegmentMap(NUM_DATA_ACTIONS, NUM_UNIQUE_VALUES);
-            for(String fragment: fragments) {
-                String key = segmentMap.putFragment(fragment);
-                System.out.println("\"" + key + "\" => " + fragment + "(" + Integer.parseInt(fragment, 2) + ")");
-            }
-
-            System.out.println("");
-            System.out.println("Message Segments");
-
-            Set<Segment> segments = segmentMap.getSegments();
-            for(Segment segment: segments) {
-                System.out.println("");
-                System.out.println("Action = \"" + segment.getAction() + "\"");
-                System.out.println("Min Value = " + segment.getMinVal() + " (0b" + Integer.toBinaryString(segment.getMinVal()) + ")");
-                System.out.println("Max Value = " + segment.getMaxVal() + " (0b" + Integer.toBinaryString(segment.getMaxVal()) + ")");
-                System.out.println("");
-
-                Map<String, String> fragmentMessageKeyMap = segment.getFragmentMessageKeyMap();
-                for(String key: fragmentMessageKeyMap.keySet()) {
-                    System.out.println("\"" + key + "\" => " + fragmentMessageKeyMap.get(key) + "(" + Integer.parseInt(fragmentMessageKeyMap.get(key), 2) + ")");
-                }
-            }
-
-            System.out.println("\nMessage Fragment Expansion Codes");
-            for(String fragment: fragments) {
-                int fragmentIntVal = bitstringToInt(fragment);
-                System.out.println(fragmentIntVal / NUM_BASE_VALUES);
-            }
-
-            System.out.println("\nMessage Fragment Base Values");
-            for(String fragment: fragments) {
-                int fragmentIntVal = bitstringToInt(fragment);
-                System.out.println(fragmentIntVal % NUM_BASE_VALUES);
-            }
-
-            String receivedBitstring = fragmentsToBitString(fragments, messageToSend.getLengthOfLastFragment());
-
-            System.out.println("Received bitstring: " + receivedBitstring);
-
-            String receivedMessage = bitStringToStr(receivedBitstring);
-
-            System.out.println("Received \"" + receivedMessage + "\"");
-        } catch(Exception e) {
-            System.out.println("Exception occurred!");
-            e.printStackTrace();
-        }
-    }
-    */
 }

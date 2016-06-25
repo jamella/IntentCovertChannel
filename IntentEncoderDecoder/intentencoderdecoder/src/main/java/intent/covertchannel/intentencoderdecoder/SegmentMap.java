@@ -84,7 +84,15 @@ public class SegmentMap {
                 if(!segment.hasMetadataKey(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY)) {
                     String sigBitsKey = keyGenerator.next();
                     Log.d(TAG, "Setting sig-bit metadata key for \"" + segment.getAction() + "\" to \"" + sigBitsKey + "\"");
-                    segment.setMetadataKey(sigBitsKey, Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY);
+                    segment.setMetadataKey(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY, sigBitsKey);
+
+                    String segmentNumberKey = keyGenerator.next();
+                    Log.d(TAG, "Setting segment number metadata key for \"" + segment.getAction() + "\" to \"" + segmentNumberKey + "\"");
+                    segment.setMetadataKey(Segment.SEGMENT_NUMBER_KEY, segmentNumberKey);
+
+                    String segmentCountKey = keyGenerator.next();
+                    Log.d(TAG, "Setting segment count metadata key for \"" + segment.getAction() + "\" to \"" + segmentCountKey + "\"");
+                    segment.setMetadataKey(Segment.MESSAGE_SEGMENT_COUNT_KEY, segmentCountKey);
                 }
 
                 String key = keyGenerator.next();
@@ -93,17 +101,13 @@ public class SegmentMap {
                 segment.addFragment(key, fragment);
                 fragmentKeyMap.put(key, fragment);
 
-                // TODO: Test this logic
                 // Update the number of significant bits in the last fragment (i.e. the one that was just added)
                 int sigBitsInFragment = fragment.length();
 
                 Log.d(TAG, "Setting significant bits for \"" + segment.getAction() + "\" to " + sigBitsInFragment);
 
-                //String sigBitsMetadataKey = segment.getMetadataKey(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY);
                 String sigBitsMetadataFragmentBitstring = Integer.toBinaryString(sigBitsInFragment);
-                segment.setMetadataValue(sigBitsMetadataFragmentBitstring, Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY);
-                //fragmentKeyMap.put(sigBitsMetadataKey, sigBitsMetadataFragmentBitstring);
-
+                segment.setMetadataValue(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY, sigBitsMetadataFragmentBitstring);
                 return key;
             }
         }

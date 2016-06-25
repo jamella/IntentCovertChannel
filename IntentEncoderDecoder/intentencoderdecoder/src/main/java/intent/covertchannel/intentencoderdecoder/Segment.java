@@ -47,19 +47,17 @@ public class Segment {
         }
     }
 
-    private static final int KEY_INDEX = 0;
-    private static final int VALUE_INDEX = 1;
-
     // Metadata field indices
     public static final int SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY = 0;
+    public static final int SEGMENT_NUMBER_KEY = 1;
+    public static final int MESSAGE_SEGMENT_COUNT_KEY = 2;
+
+    public static final int NUM_METADATA_FIELDS = 3;
 
     private String action;
     private int minVal;
     private int maxVal;
-    private String sigBitsInLastFragmentKey;
-    private int sigBitsInLastFragment;
     private Map<String, String> bitstringsByMessageKey;
-
     private List<MetadataEntry> metadataEntries;
 
     public Segment(String action, int minVal, int maxVal) {
@@ -68,11 +66,11 @@ public class Segment {
         this.maxVal = maxVal;
 
         bitstringsByMessageKey = new HashMap<String, String>();
-        sigBitsInLastFragmentKey = null;
-        sigBitsInLastFragment = 0;
-
         metadataEntries = new ArrayList<MetadataEntry>();
-        metadataEntries.add(new MetadataEntry());
+
+        for(int i = 0; i < NUM_METADATA_FIELDS; i++) {
+            metadataEntries.add(new MetadataEntry());
+        }
     }
 
     public String getAction() {
@@ -109,7 +107,7 @@ public class Segment {
         return metadataEntries.get(keyIndex).getKey() != null;
     }
 
-    public void setMetadataKey(String key, int keyIndex) {
+    public void setMetadataKey(int keyIndex, String key) {
         metadataEntries.get(keyIndex).setKey(key);
     }
 
@@ -126,7 +124,7 @@ public class Segment {
         return metadataKeys;
     }
 
-    public void setMetadataValue(String value, int keyIndex) {
+    public void setMetadataValue(int keyIndex, String value) {
         metadataEntries.get(keyIndex).setValueAsBitstring(value);
     }
 
