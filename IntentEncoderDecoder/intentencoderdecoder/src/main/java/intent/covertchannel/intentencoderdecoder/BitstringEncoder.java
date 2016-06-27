@@ -112,7 +112,7 @@ public class BitstringEncoder implements EncodingScheme {
         return carriers;
     }
 
-    public String decodeMessageAsBitstring(Intent carrier) {
+    public DecodedMessage decodeMessageAsBitstring(Intent carrier) {
         Log.d(TAG, "Starting to decode bitstring for \"" + carrier.getAction() + "\"");
 
         if (carrier == null) {
@@ -133,7 +133,7 @@ public class BitstringEncoder implements EncodingScheme {
 
         if (dataBundle.isEmpty()) {
             Log.d(TAG, "No information found for carrier with action \"" + carrier.getAction() + "\"");
-            return "";
+            return new DecodedMessage();
         }
 
         // Must have all of the metadata entries and at least one data entry
@@ -155,15 +155,16 @@ public class BitstringEncoder implements EncodingScheme {
         String segmentNumberKey = bundleKeyIter.next();
         String segmentCountKey = bundleKeyIter.next();
 
-        // TODO: Retrieve/decode the segment number and count values and bubble them up to the receiver service
-        HERE!
+        // Metadata keys do not use the action offset
+        String sigBitsMetadataBitstring = decodeFragmentAsBitstring(dataBundle, sigBitsInLastFragmentKey, 0);
+        String segmentNumberBitstring = decodeFragmentAsBitstring(dataBundle, segmentNumberKey, 0);
+        String segmentCountBitstring = decodeFragmentAsBitstring(dataBundle, segmentCountKey, 0);
+
+        int numSigBitsInLastFragment = bitstringToInt(sigBitsMetadataBitstring);
+        int segmentNumber = bitstringToInt(segmentNumberBitstring);
+        int segmentCount = bitstringToInt(segmentCountBitstring);
 
         try {
-            // Metadata keys do not use the action offset
-            String sigBitsMetadataBitstring = decodeFragmentAsBitstring(dataBundle, sigBitsInLastFragmentKey, 0);
-
-            int numSigBitsInLastFragment = bitstringToInt(sigBitsMetadataBitstring);
-
             Log.d(TAG, "Number of significant bits in the last fragment: " + numSigBitsInLastFragment);
 
             while (bundleKeyIter.hasNext()) {
@@ -195,14 +196,14 @@ public class BitstringEncoder implements EncodingScheme {
         Log.d(TAG, "Decoded bitstring for action \"" + carrier.getAction() + "\": " + joinedBitstring);
 
         actionToMessageMap.put(carrier.getAction(), joinedBitstring);
-        return joinedBitstring;
+        return DecodedMessage.fromBitstring(joinedBitstring, segmentNumber, segmentCount);
     }
 
     @Override
     public String decodeMessage(Intent carrier) {
         Log.d(TAG, "Starting to decode message: " + carrier.getAction());
-        String joinedBitstring = decodeMessageAsBitstring(carrier);
-        return bitStringToStr(joinedBitstring);
+        DecodedMessage message = decodeMessageAsBitstring(carrier);
+        return message.getMessageString();
     }
 
     private String decodeFragmentAsBitstring(Bundle dataBundle, String key, int actionOffset) {
@@ -546,5 +547,57 @@ public class BitstringEncoder implements EncodingScheme {
 
     public List<String> getOrderedMessageActionStrings() {
         return new ArrayList<String>(actionStrings);
+    }
+
+    public static class DecodedMessage {
+        private String bitstring;
+        private String messageString;
+        private int segmentNumber;
+        private int segmentCount;
+
+        private DecodedMessage() {}
+
+        public String getBitstring() {
+            return bitstring;
+        }
+
+        public String getMessageString() {
+            return messageString;
+        }
+
+        public int getSegmentNumber() {
+            return segmentNumber;
+        }
+
+        public int getSegmentCount() {
+            return segmentCount;
+        }
+
+        private void setBitstring(String bitstring) {
+            this.bitstring = bitstring;
+            this.messageString = bitStringToStr(bitstring);
+        }
+
+        private void setMessageString(String messageString) {
+            this.messageString = messageString;
+            this.bitstring = strToBitString(messageString);
+        }
+
+        private void setSegmentNumber(int segmentNumber) {
+            this.segmentNumber = segmentNumber;
+        }
+
+        private void setSegmentCount(int segmentCount) {
+            this.segmentCount = segmentCount;
+        }
+
+        public static DecodedMessage fromBitstring(String bitstring, int segmentNumber, int segmentCount) {
+            DecodedMessage message = new DecodedMessage();
+            message.setBitstring(bitstring);
+            message.setSegmentNumber(segmentNumber);
+            message.setSegmentCount(segmentCount);
+
+            return message;
+        }
     }
 }

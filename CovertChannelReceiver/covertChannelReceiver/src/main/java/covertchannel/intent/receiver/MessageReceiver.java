@@ -122,7 +122,14 @@ public class MessageReceiver extends Service {
 
     private void decodeAndStoreBitstring(Intent messageIntent) {
         BitstringEncoder bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, EncodingUtils.ACTIONS, EncodingScheme.BUILD_VERSION);
-        bitstringEncoder.decodeMessageAsBitstring(messageIntent);
+        BitstringEncoder.DecodedMessage message = bitstringEncoder.decodeMessageAsBitstring(messageIntent);
+        String messageBitstring = message.getBitstring();
+        int segmentNumber = message.getSegmentNumber();
+        int segmentCount = message.getSegmentCount();
+
+        // TODO: HERE!
+
+        // TODO: Retrieve any pre-existing action-message entries stored in the messageStore
 
         // TODO: Implement and integrate the concept of segment number metadata fields; don't display message until fully arrive
         // TODO: Write that concept into paper
