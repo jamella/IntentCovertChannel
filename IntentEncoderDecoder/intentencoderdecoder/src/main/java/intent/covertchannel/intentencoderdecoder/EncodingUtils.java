@@ -54,6 +54,7 @@ public class EncodingUtils {
     public static final String CALCULATE_BIT_ERROR_RATE = "calculate_bit_error_rate";
     public static final String SEND_TIME_ACTION = "send_time";
     public static final String SEND_BIT_ERRORS_ACTION = "send_bit_errors";
+    public static final String CLEAR_MESSAGE_STORE_ACTION = "clear_message_store";
 
     public static final String[] ACTION_ARRAY = {"data_0", "data_1", "data_2", "data_3", "data_4", "data_5", "data_6", "data_7", "data_8", "data_9"};
     public static final List<String> ACTIONS = Arrays.asList(ACTION_ARRAY);

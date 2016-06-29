@@ -53,28 +53,6 @@
         android:orientation="horizontal" >
 
         <Button
-            android:id="@+id/send_alpha_enhanced_button"
-            android:layout_width="wrap_content"
-            android:layout_height="fill_parent"
-            android:textSize="16sp"
-            android:text="Send Alpha Enhanced" />
-
-        <Button
-            android:id="@+id/send_alpha_enhanced_interceptible_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:text="Send Alpha Enhanced Interceptible" />
-    </LinearLayout>
-
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:tools="http://schemas.android.com/tools"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        tools:context=".SenderActivity"
-        android:orientation="horizontal" >
-
-        <Button
             android:id="@+id/send_bitstring_button"
             android:layout_width="wrap_content"
             android:layout_height="fill_parent"
@@ -88,4 +66,21 @@
             android:textSize="16sp"
             android:text="Send Bitstring Interceptible" />
     </LinearLayout>
+
+
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        tools:context=".SenderActivity"
+        android:orientation="horizontal" >
+
+        <Button
+            android:id="@+id/send_clear_message_store_intent"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:textSize="16sp"
+            android:text="Clear Receiver Message Store" />
+    </LinearLayout>
+
 </LinearLayout>

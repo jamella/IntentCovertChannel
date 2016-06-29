@@ -44,6 +44,10 @@
             </intent-filter>
 
             <intent-filter>
+                <action android:name="clear_message_store" />
+            </intent-filter>
+
+            <intent-filter>
                 <action android:name="control_channel" />
             </intent-filter>
 

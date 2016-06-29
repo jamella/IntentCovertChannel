@@ -42,10 +42,6 @@ public interface EncodingScheme {
      */
     public String decodeMessage(Intent carrier);
 
-    public String getMessage();
-
-    public Map<String,String> getActionToMessageMap();
-
     // TODO: Cleanup
 
     // TODO: Things to add:?

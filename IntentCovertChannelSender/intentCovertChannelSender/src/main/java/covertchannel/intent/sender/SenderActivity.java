@@ -31,33 +31,28 @@ public class SenderActivity extends Activity {
     private EditText messsageEntry;
     private Button sendAlphaButton;
     private Button sendAlphaOrigInterceptibleButton;
-    private Button sendAlphaEnhancedButton;
-    private Button sendAlphaEnhancedInterceptibleButton;
     private Button sendBitstringButton;
     private Button sendBitstringInterceptibleButton;
+    private Button clearMessageStoreButton;
 
     @Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
+        // TODO: Remove concept of enhanced alpha encoder
         messsageEntry = (EditText) findViewById(R.id.message_entry);
 		sendAlphaButton = (Button) findViewById(R.id.send_alpha_orig_button);
         sendAlphaOrigInterceptibleButton = (Button) findViewById(R.id.send_alpha_orig_interceptible_button);
-      	sendAlphaEnhancedButton = (Button) findViewById(R.id.send_alpha_enhanced_button);
-        sendAlphaEnhancedInterceptibleButton = (Button) findViewById(R.id.send_alpha_enhanced_interceptible_button);
         sendBitstringButton = (Button) findViewById(R.id.send_bitstring_button);
         sendBitstringInterceptibleButton = (Button) findViewById(R.id.send_bitstring_interceptible_button);
+        clearMessageStoreButton = (Button) findViewById(R.id.send_clear_message_store_intent);
 
-        // TODO: Implement the enhanced alpha encoder
         final EncodingScheme alphaEncoder = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.ALPHA_ENCODING_ACTION), EncodingScheme.BUILD_VERSION);
         final EncodingScheme alphaEncoderInterceptible = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.INTERCEPTIBLE_ACTION), EncodingScheme.BUILD_VERSION);
 
-        // TODO: Use more action strings
         final EncodingScheme bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, EncodingUtils.ACTIONS, EncodingScheme.BUILD_VERSION);
-        //final EncodingScheme bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, Collections.singletonList(EncodingUtils.ACTION_ARRAY[0]), EncodingScheme.BUILD_VERSION);
         final EncodingScheme bitstringEncoderInterceptible = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singletonList(EncodingUtils.INTERCEPTIBLE_ACTION), EncodingScheme.BUILD_VERSION);
-
 
         // TODO: Cleanup repeated code
 		sendAlphaButton.setOnClickListener(
@@ -81,42 +76,6 @@ public class SenderActivity extends Activity {
                 });
 
         sendAlphaOrigInterceptibleButton.setOnClickListener(
-                new OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        // TODO: Check the input validity
-                        String message = messsageEntry.getText().toString();
-                        Intent encodedIntent = alphaEncoderInterceptible.encodeMessage(message).iterator().next();
-                        messsageEntry.setText("");
-
-                        Log.d(TAG, "Starting activity with Intent with action of " + encodedIntent.getAction());
-
-                        startActivity(encodedIntent);
-                    }
-                });
-
-        sendAlphaEnhancedButton.setOnClickListener(
-                new OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        // TODO: Check the input validity
-                        String message = messsageEntry.getText().toString();
-
-                        Log.d(TAG, "Encoding message \"" + message + "\"");
-
-                        // TODO: Enable sending the full set of Intents
-                        Intent encodedIntent = alphaEncoder.encodeMessage(message).iterator().next();
-                        messsageEntry.setText("");
-
-                        ComponentName cn = new ComponentName("covertchannel.intent.receiver", "covertchannel.intent.receiver.MessageReceiver");
-                        encodedIntent.setComponent(cn);
-
-                        Log.d(TAG, "Starting activity with Intent with action of " + encodedIntent.getAction());
-                        startService(encodedIntent);
-                    }
-                });
-
-        sendAlphaEnhancedInterceptibleButton.setOnClickListener(
                 new OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -172,6 +131,21 @@ public class SenderActivity extends Activity {
                         Log.d(TAG, "Starting activity with Intent with action of " + encodedIntent.getAction());
 
                         startActivity(encodedIntent);
+                    }
+                });
+
+        clearMessageStoreButton.setOnClickListener(
+                new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Log.d(TAG, "Telling the receiver to clear its message store");
+                        Intent resetMessageStoreIntent = new Intent();
+                        resetMessageStoreIntent.setAction(EncodingUtils.CLEAR_MESSAGE_STORE_ACTION);
+                        ComponentName cn = new ComponentName("covertchannel.intent.receiver", "covertchannel.intent.receiver.MessageReceiver");
+                        resetMessageStoreIntent.setComponent(cn);
+
+                        Log.d(TAG, "Starting activity with Intent with action of " + resetMessageStoreIntent.getAction());
+                        startService(resetMessageStoreIntent);
                     }
                 });
 	}

@@ -40,7 +40,6 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
     private int numExpansionCodes;
     private Set<String> actionStrings;
     private int buildVersion;
-    private String message;
 
     public LowerCaseAlphaEncoder(int numBaseValues, int numExpansionCodes, Set<String> actionStrings, int buildVersion)
     {
@@ -135,23 +134,11 @@ public class LowerCaseAlphaEncoder implements EncodingScheme
             Log.w(TAG, "Could not fully decode message: " + e.getMessage() + "\n" + e.getStackTrace().toString());
         }
 
-        this.message = messageBuilder.toString();
+        String message = messageBuilder.toString();
 
         Log.d(EncodingUtils.TRACE_TAG, "Decoded message \"" + message + "\"");
 
         return message;
-    }
-
-    @Override
-    public String getMessage() {
-        return this.message;
-    }
-
-    @Override
-    public Map<String, String> getActionToMessageMap() {
-        Map<String, String> actionToMessageMap = new HashMap();
-        actionToMessageMap.put(this.actionStrings.iterator().next(), this.message);
-        return actionToMessageMap;
     }
 
     public int decodeExpansionCode(Bundle nestedBundle, int buildVersion) {

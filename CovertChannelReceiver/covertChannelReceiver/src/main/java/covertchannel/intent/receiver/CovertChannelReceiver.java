@@ -19,8 +19,6 @@ public class CovertChannelReceiver extends Activity
 	// service
     private SharedPreferences messageStore;
 	
-	private String message;
-	
 	/** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -31,44 +29,28 @@ public class CovertChannelReceiver extends Activity
         receivedMessageField = (TextView) findViewById(R.id.received_message);
         
         messageStore = getSharedPreferences(MessageReceiver.MESSAGE_STORE_KEY, MODE_PRIVATE);
-        message = "";
     }
     
     @Override
     public void onStart()
     {
     	super.onStart();
-    	
-    	// TODO: Implement intent filtering (ignore LAUNCHER/MAIN, etc.)
-    	// inside the MessageReceiver service
-    	
     	SharedPreferences.Editor messageStoreEditor = messageStore.edit();
 
-        // TODO: Implement hard-coded isMessageReady value; only read and remove if set to true
-    	Map<String, ?> messages = messageStore.getAll();
-    	for(String key: messages.keySet()) {
-    		message += messages.get(key) + " ";
-    		
-    		// Removes the message from the store
-    		messageStoreEditor.remove(key);
-    	}
-    	
+        String alphaEncodedMessage = messageStore.getString(MessageReceiver.ALPHA_ENCODED_MESSAGE_STORAGE_KEY, "");
+        messageStoreEditor.remove(MessageReceiver.ALPHA_ENCODED_MESSAGE_STORAGE_KEY);
+
+        String bitstringEncodedMessage = messageStore.getString(MessageReceiver.BITSTRING_ENCODED_MESSAGE_STORAGE_KEY, "");
+        messageStoreEditor.remove(MessageReceiver.BITSTRING_ENCODED_MESSAGE_STORAGE_KEY);
+
     	// Commit changes (i.e. remove all the stored messages)
     	messageStoreEditor.commit();
-    	
-    	if(message != null && message.length() != 0)
-    	{
-    		updateDisplay(message);
-    	}
-    	else
-    	{
-    		updateDisplay(NO_MESSAGE_ERROR);
-    	}
+
+    	updateDisplay(alphaEncodedMessage, bitstringEncodedMessage);
     }
     
     @Override
-    public void onResume()
-    {
+    public void onResume() {
     	super.onResume();
     }
 
@@ -76,17 +58,20 @@ public class CovertChannelReceiver extends Activity
      * Updates the user display with the current message which has
      * been received so far.
      */
-	private void updateDisplay(String messageString)
-	{
-		if(messageString.equals(NO_MESSAGE_ERROR))
-		{
-			receivedMessageLabel.setText("");
+	private void updateDisplay(String alphaEncodedMessage, String bitstringEncodedMessage) {
+        String labelText = "";
+        String messageString = NO_MESSAGE_ERROR;
+		if(alphaEncodedMessage.length() > 0) {
+            labelText = "Alpha-encoding: Received " + alphaEncodedMessage.getBytes().length + " bytes\n";
+            messageString = "Alpha-encoded message:\n\n" + alphaEncodedMessage;
 		}
-		else
-		{
-			receivedMessageLabel.setText("Received " + message.getBytes().length + " bytes:\n");
+
+        if(bitstringEncodedMessage.length() > 0) {
+            labelText += "Bitstring-encoding: Received " + bitstringEncodedMessage.getBytes().length + " bytes\n";
+            messageString = "Bitstring-encoded message:\n\n" + bitstringEncodedMessage;
 		}
-		
+
+        receivedMessageLabel.setText(labelText);
 		receivedMessageField.setText(messageString);
 	}
 }

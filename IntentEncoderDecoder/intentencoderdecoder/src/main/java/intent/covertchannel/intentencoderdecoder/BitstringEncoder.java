@@ -42,7 +42,7 @@ public class BitstringEncoder implements EncodingScheme {
     private int numExpansionCodes;
     private List<String> actionStrings;
     private int buildVersion;
-    private Map<String, String> actionToMessageMap;
+
     private int maxBaseValue;
 
     public BitstringEncoder(int numBaseValues, int numExpansionCodes, List<String> actionStrings, int buildVersion) {
@@ -65,7 +65,6 @@ public class BitstringEncoder implements EncodingScheme {
 
         this.keyGenerator = new AlphabeticalKeySequence();
         this.keyComparator = new AlphabeticalKeySequenceComparator();
-        this.actionToMessageMap = new HashMap<>();
     }
 
     @Override
@@ -82,7 +81,7 @@ public class BitstringEncoder implements EncodingScheme {
 
         Log.d(TAG, "Message Segments");
 
-        int segmentIndex = 1;
+        int segmentIndex = 0;
         int segmentCount = 0;
         List<Intent> carriers = new ArrayList<>();
         List<Segment> segments = segmentMap.getSegments();
@@ -96,7 +95,6 @@ public class BitstringEncoder implements EncodingScheme {
 
             if(!segment.isEmpty()) {
                 Log.d(TAG, "Encoding segment \"" + segment.getAction() + "\"");
-                // TODO: Make sure that this doesn't lose bits; may need helper function
                 segment.setMetadataValue(Segment.SEGMENT_NUMBER_KEY, Integer.toBinaryString(segmentIndex));
                 segmentsToEncode.add(segment);
                 segmentIndex++;
@@ -122,9 +120,6 @@ public class BitstringEncoder implements EncodingScheme {
         if (carrier.getAction() == null) {
             throw new IllegalArgumentException("Cannot decode message; carrier Intent action is null");
         }
-        if (actionToMessageMap.containsKey(carrier.getAction())) {
-            throw new IllegalArgumentException("Message action " + carrier.getAction() + " has already been seen");
-        }
 
         Bundle dataBundle = carrier.getExtras();
         if (dataBundle == null) {
@@ -133,70 +128,70 @@ public class BitstringEncoder implements EncodingScheme {
 
         if (dataBundle.isEmpty()) {
             Log.d(TAG, "No information found for carrier with action \"" + carrier.getAction() + "\"");
-            return new DecodedMessage();
+            return null;
         }
 
         // Must have all of the metadata entries and at least one data entry
-        if (dataBundle.size() < (Segment.NUM_METADATA_FIELDS + 1)) {
+        if (dataBundle.size() < (Segment.NUM_METADATA_FIELDS +  1)) {
             throw new IllegalArgumentException("Data bundle must contain data fields in addition to metadata fields");
         }
 
-        Set<String> bundleKeys;
-        bundleKeys = new TreeSet<>(keyComparator);
+        Set<String> bundleKeys = new TreeSet<>(keyComparator);
         bundleKeys.addAll(dataBundle.keySet());
 
         int actionOffset = calculateActionOffset(carrier.getAction());
 
         List<String> messageFragments = new ArrayList<>();
-        StringBuilder msgBuilder = new StringBuilder();
-
         Iterator<String> bundleKeyIter = bundleKeys.iterator();
         String sigBitsInLastFragmentKey = bundleKeyIter.next();
         String segmentNumberKey = bundleKeyIter.next();
         String segmentCountKey = bundleKeyIter.next();
 
         // Metadata keys do not use the action offset
-        String sigBitsMetadataBitstring = decodeFragmentAsBitstring(dataBundle, sigBitsInLastFragmentKey, 0);
-        String segmentNumberBitstring = decodeFragmentAsBitstring(dataBundle, segmentNumberKey, 0);
-        String segmentCountBitstring = decodeFragmentAsBitstring(dataBundle, segmentCountKey, 0);
+        String sigBitsMetadataBitstring = decodeFragmentAsBitstring(dataBundle, sigBitsInLastFragmentKey, 0, fragmentMinBitLength);
+        String segmentNumberBitstring = decodeFragmentAsBitstring(dataBundle, segmentNumberKey, 0, fragmentMinBitLength);
+        String segmentCountBitstring = decodeFragmentAsBitstring(dataBundle, segmentCountKey, 0, fragmentMinBitLength);
 
         int numSigBitsInLastFragment = bitstringToInt(sigBitsMetadataBitstring);
         int segmentNumber = bitstringToInt(segmentNumberBitstring);
         int segmentCount = bitstringToInt(segmentCountBitstring);
 
-        try {
-            Log.d(TAG, "Number of significant bits in the last fragment: " + numSigBitsInLastFragment);
+        Log.d(TAG, "Decoded metadata field values: numSigBitsInLastFragment = " + numSigBitsInLastFragment + ", segmentNumber = " + segmentNumber + ", segmentCount = " + segmentCount);
 
+        DecodedMessage decodedMessage = new DecodedMessage(segmentNumber, segmentCount);
+
+        try {
+            String key = bundleKeyIter.next();
             while (bundleKeyIter.hasNext()) {
-                String key = bundleKeyIter.next();
-                String fragment = decodeFragmentAsBitstring(dataBundle, key, actionOffset);
+                String fragment = decodeFragmentAsBitstring(dataBundle, key, actionOffset, segmentMinBitLength);
                 messageFragments.add(fragment);
+                decodedMessage.putBitstring(key, fragment);
+                key = bundleKeyIter.next();
             }
 
             // Join the message fragments together, accounting for the fact that the last fragment might have
             // been padded (and therefore need to have the padding removed from the end [least significant
             // bits])
+            /* TODO: Move or remove
             for(int i = 0; i < messageFragments.size() - 1; i++) {
                 msgBuilder.append(messageFragments.get(i));
             }
+            */
 
-            String lastFragmentBitstring = messageFragments.get(messageFragments.size() - 1);
+            String lastFragmentBitstring = decodeFragmentAsBitstring(dataBundle, key, actionOffset, segmentMinBitLength);
+            Log.d(TAG, "Last fragment: \"" + lastFragmentBitstring + "\"; num bits: " + lastFragmentBitstring.length() + ", significant bits in fragment: " + numSigBitsInLastFragment);
             if(numSigBitsInLastFragment < fragmentMinBitLength) {
                 int numPaddingBits = lastFragmentBitstring.length() - numSigBitsInLastFragment;
                 lastFragmentBitstring = lastFragmentBitstring.substring(0, lastFragmentBitstring.length() - numPaddingBits);
+                Log.d(TAG, "Last fragment with padding removed: \"" + lastFragmentBitstring + "\"");
             }
 
-            msgBuilder.append(lastFragmentBitstring);
+            decodedMessage.putBitstring(key, lastFragmentBitstring);
         } catch(IllegalArgumentException e) {
             Log.w(TAG, "Could not fully decode message: " + e.getMessage() + "\n" + e.getStackTrace().toString());
         }
 
-        String joinedBitstring = msgBuilder.toString();
-
-        Log.d(TAG, "Decoded bitstring for action \"" + carrier.getAction() + "\": " + joinedBitstring);
-
-        actionToMessageMap.put(carrier.getAction(), joinedBitstring);
-        return DecodedMessage.fromBitstring(joinedBitstring, segmentNumber, segmentCount);
+        return decodedMessage;
     }
 
     @Override
@@ -206,7 +201,7 @@ public class BitstringEncoder implements EncodingScheme {
         return message.getMessageString();
     }
 
-    private String decodeFragmentAsBitstring(Bundle dataBundle, String key, int actionOffset) {
+    private String decodeFragmentAsBitstring(Bundle dataBundle, String key, int actionOffset, int minBitLength) {
         int value;
         if(EncodingUtils.containsExpansionCode(dataBundle, key)) {
             Log.d(TAG, "Decoding value and expansion code for key \"" + key + "\"");
@@ -219,8 +214,10 @@ public class BitstringEncoder implements EncodingScheme {
         value += actionOffset;
         String msgBitstring = Integer.toBinaryString(value);
 
-        if(msgBitstring.length() < this.fragmentMinBitLength) {
-            msgBitstring = leftPadWithZeroes(msgBitstring, this.fragmentMinBitLength - msgBitstring.length());
+        Log.d(TAG, "Decoded fragment bitstring: \"" + msgBitstring + "\" (" + msgBitstring.length() + " bits; min bits => " + minBitLength + ") for key \"" + key + "\" with action offset of " + actionOffset);
+        if(msgBitstring.length() < minBitLength) {
+            msgBitstring = leftPadWithZeroes(msgBitstring, minBitLength - msgBitstring.length());
+            Log.d(TAG, "Bitstring with zero padding: \"" + msgBitstring + "\" (" + msgBitstring.length() + " bits)");
         }
 
         Log.d(TAG, "Decoded bitstring " + msgBitstring + " for key \"" + key + "\" with an actionOffset of " + actionOffset);
@@ -269,29 +266,6 @@ public class BitstringEncoder implements EncodingScheme {
         Log.d(TAG, "Base value for root key \"" + baseKey + "\" => " + baseValue);
 
         return baseValue;
-    }
-
-    /**
-     * Returns the current message which has been decoded so far.
-     */
-    @Override
-    public String getMessage() {
-        StringBuilder msgBuilder = new StringBuilder();
-
-        // The EncodingUtils.ACTIONS list is used to determine the ordering of the different segments
-        for(String action: EncodingUtils.ACTIONS) {
-            if(actionToMessageMap.containsKey(action)) {
-                msgBuilder.append(actionToMessageMap.get(action));
-            }
-        }
-
-        actionToMessageMap.clear();
-        return msgBuilder.toString();
-    }
-
-    @Override
-    public Map<String, String> getActionToMessageMap() {
-        return actionToMessageMap;
     }
 
     // Taken from http://stackoverflow.com/questions/3305059/how-do-you-calculate-log-base-2-in-java-for-integers;
@@ -426,28 +400,33 @@ public class BitstringEncoder implements EncodingScheme {
         for(char bit: bitstring.toCharArray()) {
             String newFragment = currentFragment + bit;
             if(bitstringToInt(newFragment) > maxValue) {
+                Log.d(TAG, "Adding fragment \"" + currentFragment + "\"");
                 fragments.add(currentFragment);
                 currentFragment = "" + bit;
+                fragmentLength = 1;
+
+            // TODO: Test this case (suspect it's not 100% efficient at bit packing
             } else if((newFragment.startsWith("0") && newFragment.length() == fragmentMinBitLength) ||
                     (newFragment.startsWith("1") && newFragment.length() == fragmentMaxBitLength)) {
+                Log.d(TAG, "Adding fragment \"" + newFragment + "\"");
                 fragments.add(newFragment);
-                fragmentLength = 0;
                 currentFragment = "";
+                fragmentLength = 0;
             } else {
                 currentFragment += bit;
+                fragmentLength++;
             }
-
-            fragmentLength++;
         }
 
         lengthOfLastFragment = fragmentLength;
 
         if(currentFragment.length() != 0) {
-            // Pad the last fragment from right with zeros
-            while(currentFragment.length() < fragmentMaxBitLength) {
+            Log.d(TAG, "Padding the last fragment \"" + currentFragment + "\"");
+            while(currentFragment.length() < fragmentMinBitLength) {
                 currentFragment += "0";
             }
 
+            Log.d(TAG, "Adding padded fragment \"" + currentFragment + "\" with a significant bit length of " + lengthOfLastFragment);
             fragments.add(currentFragment);
         }
 
@@ -550,19 +529,16 @@ public class BitstringEncoder implements EncodingScheme {
     }
 
     public static class DecodedMessage {
-        private String bitstring;
-        private String messageString;
+        private Map<String, String> fragmentBitstringsByMessageKey;
         private int segmentNumber;
         private int segmentCount;
+        private Comparator<String> keyComparator;
 
-        private DecodedMessage() {}
-
-        public String getBitstring() {
-            return bitstring;
-        }
-
-        public String getMessageString() {
-            return messageString;
+        public DecodedMessage(int segmentNumber, int segmentCount) {
+            this.segmentNumber = segmentNumber;
+            this.segmentCount = segmentCount;
+            fragmentBitstringsByMessageKey = new HashMap<>();
+            keyComparator = new AlphabeticalKeySequenceComparator();
         }
 
         public int getSegmentNumber() {
@@ -573,31 +549,26 @@ public class BitstringEncoder implements EncodingScheme {
             return segmentCount;
         }
 
-        private void setBitstring(String bitstring) {
-            this.bitstring = bitstring;
-            this.messageString = bitStringToStr(bitstring);
+        public Map<String, String> getFragmentBitstringsByMessageKey() {
+            return fragmentBitstringsByMessageKey;
         }
 
-        private void setMessageString(String messageString) {
-            this.messageString = messageString;
-            this.bitstring = strToBitString(messageString);
+        private void putBitstring(String key, String bitstring) {
+            Log.d(TAG, "Key \"" + key + "\" => bitstring: \"" + bitstring +"\"");
+            fragmentBitstringsByMessageKey.put(key, bitstring);
         }
 
-        private void setSegmentNumber(int segmentNumber) {
-            this.segmentNumber = segmentNumber;
-        }
+        public String getMessageString() {
+            StringBuilder msgBuilder = new StringBuilder();
+            Set<String> msgKeys = new TreeSet<>(keyComparator);
+            msgKeys.addAll(fragmentBitstringsByMessageKey.keySet());
 
-        private void setSegmentCount(int segmentCount) {
-            this.segmentCount = segmentCount;
-        }
+            for(String msgKey: msgKeys) {
+                msgBuilder.append(fragmentBitstringsByMessageKey.get(msgKey));
+            }
 
-        public static DecodedMessage fromBitstring(String bitstring, int segmentNumber, int segmentCount) {
-            DecodedMessage message = new DecodedMessage();
-            message.setBitstring(bitstring);
-            message.setSegmentNumber(segmentNumber);
-            message.setSegmentCount(segmentCount);
-
-            return message;
+            String consolidatedBitstring = msgBuilder.toString();
+            return bitStringToStr(consolidatedBitstring);
         }
     }
 }
