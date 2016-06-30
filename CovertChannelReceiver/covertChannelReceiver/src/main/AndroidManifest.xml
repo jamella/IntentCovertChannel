@@ -36,9 +36,13 @@
             </intent-filter>
             
             <intent-filter>
-                <action android:name="calculate_throughput_action" />
+                <action android:name="calculate_throughput_action_alpha_encoding" />
             </intent-filter>
-            
+
+            <intent-filter>
+                <action android:name="calculate_throughput_action_bitstring_encoding" />
+            </intent-filter>
+
             <intent-filter>
                 <action android:name="calculate_bit_error_rate" />
             </intent-filter>

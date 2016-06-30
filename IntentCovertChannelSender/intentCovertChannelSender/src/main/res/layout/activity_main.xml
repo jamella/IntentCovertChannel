@@ -81,6 +81,26 @@
             android:layout_height="fill_parent"
             android:textSize="16sp"
             android:text="Clear Receiver Message Store" />
+
+        <Button
+            android:id="@+id/run_throughput_test_button"
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:textSize="16sp"
+            android:text="Run Throughput Test" />
     </LinearLayout>
 
+    <!-- TODO: Look into making this into a table view-->
+    <ScrollView
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_weight="5" >
+
+        <TextView
+            android:id="@+id/stats_display"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="" />
+
+    </ScrollView>
 </LinearLayout>

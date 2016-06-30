@@ -5,7 +5,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -53,11 +52,14 @@ public class MessageReceiver extends Service {
 
             // TODO: Throughput calculations to work for bitstring and alpha-encoding methods
             String intentAction = intent.getAction();
-            if(intentAction.equals(EncodingUtils.CALCULATE_THROUGHPUT_ACTION)) {
+            if(intentAction.equals(EncodingUtils.CALCULATE_THROUGHPUT_ACTION_ALPHA_ENCODING)) {
                 Intent responseIntent = new Intent();
                 responseIntent.setAction(EncodingUtils.SEND_TIME_ACTION);
                 responseIntent.putExtra(EncodingUtils.END_TIME_KEY, endTime);
                 sendBroadcast(responseIntent);
+            // TODO: Remove this case?
+            } else if(intentAction.equals(EncodingUtils.CALCULATE_THROUGHPUT_ACTION_BITSTRING_ENCODING)) {
+                decodeAndStoreBitstring(intent, endTime);
             } else if(intentAction.equals(EncodingUtils.CALCULATE_BIT_ERROR_RATE)) {
                 LowerCaseAlphaEncoder alphaEncoder = new LowerCaseAlphaEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_ALPHA_EXPANSION_CODES, Collections.singleton(EncodingUtils.ALPHA_ENCODING_ACTION), EncodingScheme.BUILD_VERSION);
                 String receivedMessage = alphaEncoder.decodeMessage(intent);
@@ -74,7 +76,7 @@ public class MessageReceiver extends Service {
             } else if(intentAction.equals(EncodingUtils.ALPHA_ENCODING_ACTION)) {
                 decodeAndStore(intent);
             } else { // Must be a bitstring-encoded Intent
-                decodeAndStoreBitstring(intent);
+                decodeAndStoreBitstring(intent, endTime);
             }
         }
     }
@@ -113,7 +115,8 @@ public class MessageReceiver extends Service {
 		// signature/pattern/microprotocol being used and looked for to
 		// vary independently
 	    return (EncodingUtils.ALPHA_ENCODING_ACTION.equals(intent.getAction()) ||
-	    		EncodingUtils.CALCULATE_THROUGHPUT_ACTION.equals(intent.getAction()) ||
+	    		EncodingUtils.CALCULATE_THROUGHPUT_ACTION_ALPHA_ENCODING.equals(intent.getAction()) ||
+                EncodingUtils.CALCULATE_THROUGHPUT_ACTION_BITSTRING_ENCODING.equals(intent.getAction()) ||
 	    		EncodingUtils.CALCULATE_BIT_ERROR_RATE.equals(intent.getAction()) ||
                 EncodingUtils.CLEAR_MESSAGE_STORE_ACTION.equals(intent.getAction()) ||
                 EncodingUtils.ACTIONS.contains(intent.getAction()));
@@ -128,8 +131,8 @@ public class MessageReceiver extends Service {
     	messageStoreEditor.commit();
 	}
 
-    private void decodeAndStoreBitstring(Intent messageIntent) {
-        Log.d(TAG, "Starting to decode message: current action \"" + messageIntent.getAction() + "\"");
+    private void decodeAndStoreBitstring(Intent messageIntent, long endTime) {
+        Log.d(TAG, "Starting to decode message: current action \"" + messageIntent.getAction() + "\"; end time = " + endTime);
         printMessageStore();
 
         BitstringEncoder bitstringEncoder = new BitstringEncoder(EncodingScheme.NUM_BASE_VALUES, EncodingUtils.NUM_EXPANSION_CODES, EncodingUtils.ACTIONS, EncodingScheme.BUILD_VERSION);
@@ -174,6 +177,11 @@ public class MessageReceiver extends Service {
         }
 
         if(messageIsComplete) {
+            Intent responseIntent = new Intent();
+            responseIntent.setAction(EncodingUtils.SEND_TIME_ACTION);
+            responseIntent.putExtra(EncodingUtils.END_TIME_KEY, endTime);
+            sendBroadcast(responseIntent);
+
             for(String segmentKey: remainingSegmentKeys) {
                 Log.d(TAG, "Retrieving fragment map for segment key \"" + segmentKey + "\"");
                 printMessageStore();
@@ -218,7 +226,6 @@ public class MessageReceiver extends Service {
         }
 
         return messageStoreStrBldr.toString();
-
     }
 
     private static void storeStringSet(SharedPreferences.Editor messageStoreEditor, String key, Set<String> valueSet) {
