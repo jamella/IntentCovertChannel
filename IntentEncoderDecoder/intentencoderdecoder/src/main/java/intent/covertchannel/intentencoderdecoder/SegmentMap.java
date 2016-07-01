@@ -47,13 +47,13 @@ public class SegmentMap {
 
         int val = 0;
 
-        Log.d(TAG, "Initializing segments: numActions = " + actionStrings.size() + ", numUniqueValues = " + numUniqueValues);
+        //Log.d(TAG, "Initializing segments: numActions = " + actionStrings.size() + ", numUniqueValues = " + numUniqueValues);
 
         Iterator<String> actionIter = actionStrings.iterator();
         while(val < numUniqueValues && actionIter.hasNext()) {
             int nextVal = val + valsPerSegment - 1;
 
-            Log.d(TAG, "val = " + val + ", nextVal = " + nextVal);
+            //Log.d(TAG, "val = " + val + ", nextVal = " + nextVal);
 
             if(nextVal > numUniqueValues) {
                 segments.add(new Segment(actionIter.next(), val, numUniqueValues));
@@ -83,15 +83,15 @@ public class SegmentMap {
             if(segment.valueWithinLimits(fragmentVal)) {
                 if(!segment.hasMetadataKey(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY)) {
                     String sigBitsKey = keyGenerator.next();
-                    Log.d(TAG, "Setting sig-bit metadata key for \"" + segment.getAction() + "\" to \"" + sigBitsKey + "\"");
+                    //Log.d(TAG, "Setting sig-bit metadata key for \"" + segment.getAction() + "\" to \"" + sigBitsKey + "\"");
                     segment.setMetadataKey(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY, sigBitsKey);
 
                     String segmentNumberKey = keyGenerator.next();
-                    Log.d(TAG, "Setting segment number metadata key for \"" + segment.getAction() + "\" to \"" + segmentNumberKey + "\"");
+                    //Log.d(TAG, "Setting segment number metadata key for \"" + segment.getAction() + "\" to \"" + segmentNumberKey + "\"");
                     segment.setMetadataKey(Segment.SEGMENT_NUMBER_KEY, segmentNumberKey);
 
                     String segmentCountKey = keyGenerator.next();
-                    Log.d(TAG, "Setting segment count metadata key for \"" + segment.getAction() + "\" to \"" + segmentCountKey + "\"");
+                    //Log.d(TAG, "Setting segment count metadata key for \"" + segment.getAction() + "\" to \"" + segmentCountKey + "\"");
                     segment.setMetadataKey(Segment.MESSAGE_SEGMENT_COUNT_KEY, segmentCountKey);
                 }
 
@@ -104,7 +104,7 @@ public class SegmentMap {
                 // Update the number of significant bits in the last fragment (i.e. the one that was just added)
                 int sigBitsInFragment = fragment.length();
 
-                Log.d(TAG, "Setting significant bits for \"" + segment.getAction() + "\" to " + sigBitsInFragment);
+                //Log.d(TAG, "Setting significant bits for \"" + segment.getAction() + "\" to " + sigBitsInFragment);
 
                 String sigBitsMetadataFragmentBitstring = Integer.toBinaryString(sigBitsInFragment);
                 segment.setMetadataValue(Segment.SIGNIFICANT_BITS_IN_LAST_FRAGMENT_KEY, sigBitsMetadataFragmentBitstring);

@@ -13,6 +13,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Parcelable;
+import android.os.SystemClock;
 import android.util.Log;
 import android.util.SparseArray;
 
@@ -36,9 +37,16 @@ public class EncodingUtils {
 	 */
 	public static final String START_TIME_KEY = "start_time";
 	public static final String END_TIME_KEY = "end_time";
+    public static final String ELAPSED_TIME_KEY = "elapsed_time";
 	public static final String BIT_ERROR_KEY = "bit_error";
 	public static final String RECEIVED_MESSAGE_KEY = "received_message";
 	public static final String ORIGINAL_MESSAGE_KEY = "original_message";
+    public static final String NUM_BASE_VALUES_KEY = "num_base_values";
+    public static final String NUM_EXPANSION_CODES_KEY = "num_expansion_codes";
+    public static final String NUM_ACTIONS_KEY = "num_actions";
+    public static final String TEST_ID_KEY = "test_id";
+
+    public static final int DEFAULT_TEST_ID = 0;
 
     public static final String TRACE_TAG = "intent.covertchannel.trace";
     private static final String TAG = "intent.covertchannel.intentencoderdecoder.EncodingUtils";
@@ -56,6 +64,8 @@ public class EncodingUtils {
     public static final String SEND_TIME_ACTION = "send_time";
     public static final String SEND_BIT_ERRORS_ACTION = "send_bit_errors";
     public static final String CLEAR_MESSAGE_STORE_ACTION = "clear_message_store";
+    public static final String SET_CHANNEL_CONFIGURATION_ACTION = "set_channel_config";
+    public static final String ACKNOWLEDGE_MESSAGE_SEGMENT_ACTION = "ack_message_segment";
 
     public static final String[] ACTION_ARRAY = {
             "data_0", "data_1", "data_2", "data_3", "data_4", "data_5", "data_6", "data_7", "data_8", "data_9",
@@ -93,7 +103,7 @@ public class EncodingUtils {
      * Build version constants: http://developer.android.com/reference/android/os/Build.VERSION_CODES.html
      */
     public static Bundle encodeValue(Bundle bundle, String key, int value, int buildVersion) {
-        Log.d(TRACE_TAG, "Encoding value " + value + " with key \"" + key + "\"");
+        //Log.d(TRACE_TAG, "Encoding value " + value + " with key \"" + key + "\"");
 
         if(value < 0){
             throw new IllegalArgumentException("In encodeValue(): Unsupported negative value " + value);
@@ -210,7 +220,7 @@ public class EncodingUtils {
         // TODO: Move into concrete EncodingScheme classes (need different version for all three mechanisms)
 
         boolean containsExCode = (dataPacket.getBundle(key) != null);
-        Log.d(TRACE_TAG, "Key \"" + key + "\" maps to an expansion code value: " + containsExCode);
+        //Log.d(TRACE_TAG, "Key \"" + key + "\" maps to an expansion code value: " + containsExCode);
         return containsExCode;
     }
 
@@ -223,7 +233,7 @@ public class EncodingUtils {
      */
     // TODO: change to decodeValue
     public static int decodeValueForEntry(Bundle dataPacket, String key, int expansionCode, int buildVersion) {
-        Log.d(TRACE_TAG, "Decoding value for key \"" + key + "\"");
+        //Log.d(TRACE_TAG, "Decoding value for key \"" + key + "\"");
 
         /**
          Notes and TODO's:
@@ -323,7 +333,7 @@ public class EncodingUtils {
 		// Applies the effects of the expansion code
 		charCode += (charSetSize * expansionCode);
 
-        Log.d(TRACE_TAG, "Decoded char code of " + charCode + " for key " + "\"" + key + "\"");
+        //Log.d(TRACE_TAG, "Decoded char code of " + charCode + " for key " + "\"" + key + "\"");
 
 		return charCode;
 	}
@@ -390,5 +400,14 @@ public class EncodingUtils {
         }
         
         return retString;
+    }
+
+    // TODO: Cleanup
+    public static double getTimeMillisAccurate() {
+    //public static long getTimeMillisAccurate() {
+        // TODO: Cleanup
+        return Math.round(Math.abs(System.nanoTime()) / 1000000);
+        //return Math.abs(System.nanoTime()) / 1000000.0;
+        //return System.currentTimeMillis();
     }
 }

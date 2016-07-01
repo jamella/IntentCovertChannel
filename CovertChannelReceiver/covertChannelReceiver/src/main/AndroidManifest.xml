@@ -52,6 +52,10 @@
             </intent-filter>
 
             <intent-filter>
+                <action android:name="set_channel_config" />
+            </intent-filter>
+
+            <intent-filter>
                 <action android:name="control_channel" />
             </intent-filter>
 
