@@ -6,8 +6,8 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Bundle;
-import android.os.SystemClock;
+import android.os.*;
+import android.os.Process;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
@@ -36,7 +36,7 @@ public class SenderActivity extends Activity {
 
     // TODO: Prune any overly-large message sizes (or add more if possible)
     // TODO: Cleanup
-    private static final int[] THROUGHPUT_TEST_MESSAGE_SIZES_IN_BYTES = {2048, 4096, 8192, 16384, 32768, 65536};//, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216};
+    private static final int[] THROUGHPUT_TEST_MESSAGE_SIZES_IN_BYTES = {256, 1024, 2048};//,  2048, 8192, 16384, 32768, 65536};//, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216};
     //{256, 512, 1024, 2048, 4096, 8192};//, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216};
 
     private static final int[] BASE_VALUE_COUNTS = {EncodingScheme.NUM_BASE_VALUES};
@@ -49,7 +49,7 @@ public class SenderActivity extends Activity {
                     //(EncodingScheme.NUM_BASE_VALUES * 5) + 1, // 105 + 1 = 106
             };
 
-    private static final int[] ACTION_STRING_COUNTS = {1, 5, 25};//, 75, 100};
+    private static final int[] ACTION_STRING_COUNTS = {1, 25, 100};//{1, 5, 25, 75, 100};
 
     private static final int NUM_TEST_REPETITIONS = 5;
     private static final String TEST_RESULTS_FILE_NAME = "TestResults_"; // TODO: Write to DCIM
@@ -67,6 +67,7 @@ public class SenderActivity extends Activity {
         private Double endTime;
         private long testRunId;
         private List<Intent> testMessageIntents;
+        private BroadcastReceiver acknowledgementReceiver;
 
         public TestRunEntry(int numMessageBytes, int numBaseValues, int numExpansionCodes, int numActions, int numUniqueValues, String message) {
             testRunId = UUID.randomUUID().getLeastSignificantBits();
@@ -81,6 +82,7 @@ public class SenderActivity extends Activity {
             //this.elapsedTime = null;
             this.startTime = null;
             this.endTime = null;
+            this.acknowledgementReceiver = null;
         }
 
         public long getTestRunId() {
@@ -88,6 +90,11 @@ public class SenderActivity extends Activity {
         }
 
         public void setEndTime(double endTime) {
+            if(acknowledgementReceiver != null) {
+                unregisterReceiver(acknowledgementReceiver);
+                acknowledgementReceiver = null;
+            }
+
             this.endTime = endTime;
         }
 
@@ -144,7 +151,7 @@ public class SenderActivity extends Activity {
 
             configureReceiver(numBaseValues, numExpansionCodes, numActions, testRunId);
 
-            Log.d(TAG, "Encoding message \"" + message + "\" as bitstring");
+            //Log.d(TAG, "Encoding message \"" + message + "\" as bitstring");
             Collection<Intent> encodedIntents = bitstringEncoder.encodeMessage(message);
 
             testMessageIntents.clear();
@@ -171,21 +178,28 @@ public class SenderActivity extends Activity {
 
             IntentFilter filter = new IntentFilter();
             filter.addAction(EncodingUtils.ACKNOWLEDGE_MESSAGE_SEGMENT_ACTION);
-            registerReceiver(new BroadcastReceiver() {
-                                 @Override
-                                 public void onReceive(Context context, Intent intent) {
-                                     if(!testMessageIntents.isEmpty()) {
-                                         Log.d(TAG, "Sending next message segment for test " + testRunId);
-                                         Intent encodedIntent = testMessageIntents.remove(0);
-                                         Log.d(TAG, "Starting service with Intent with action of " + encodedIntent.getAction());
-                                         startService(encodedIntent);
-                                     } else {
-                                         Log.d(TAG, "Test " + testRunId + " is complete");
-                                         unregisterReceiver(this);
-                                     }
-                                 }
-                             },
-                    filter);
+
+            if(this.acknowledgementReceiver != null) {
+                unregisterReceiver(this.acknowledgementReceiver);
+                this.acknowledgementReceiver = null;
+            }
+
+            this.acknowledgementReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if(!testMessageIntents.isEmpty()) {
+                        Log.d(TAG, "Sending next message segment for test " + testRunId);
+                        Intent encodedIntent = testMessageIntents.remove(0);
+                        Log.d(TAG, "Starting service with Intent with action of " + encodedIntent.getAction());
+                        startService(encodedIntent);
+                    } else {
+                        Log.d(TAG, "Test " + testRunId + " is complete");
+                        unregisterReceiver(this);
+                    }
+                }
+            };
+
+            registerReceiver(acknowledgementReceiver, filter);
 
             this.startTime = EncodingUtils.getTimeMillisAccurate();
             Intent encodedIntent = testMessageIntents.remove(0);
@@ -269,7 +283,14 @@ public class SenderActivity extends Activity {
             Log.d(REPORT_TAG, "Finished test: " + testSummary);
             //outputTestResults(testSummary);
 
-            completedTests.add(currentTest);
+            double currentBitsPerSecond = currentTest.getBitsPerSecond();
+            if(currentBitsPerSecond == Double.POSITIVE_INFINITY || currentBitsPerSecond == Double.NEGATIVE_INFINITY) {
+                // Re-run the test
+                testsToRun.add(0, currentTest);
+            } else {
+                completedTests.add(currentTest);
+            }
+
             currentTest = null;
         }
 
@@ -479,6 +500,7 @@ public class SenderActivity extends Activity {
     private void performThroughputTest() {
         new Thread(new Runnable() {
             public void run() {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
 
                 // TODO: Add evaluating the original implementation
                 // TODO: Cleanup
